@@ -100,47 +100,63 @@ All other functionality uses Python standard library modules.
 
 # 📦 Installation
 
-## 1️⃣ Clone Repository
+## 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/YouTubers777/ReconNinja.git
+git clone https://github.com/YOUR_USERNAME/ReconNinja.git
 cd ReconNinja
+```
 
+---
 
+## 2️⃣ Install Python Dependency
 
+```bash
+pip install rich
+```
 
+---
 
+## 3️⃣ Install Required Tool
 
+Minimum requirement:
 
+```bash
+sudo pacman -S nmap
+```
 
+⚡ Optional tools increase capability (subfinder, amass, ffuf, nuclei, etc.)
 
+---
 
+# ▶ Usage
 
+## 🖥 Interactive Mode
 
+```bash
+python recon_ninja.py
+```
 
+Displays:
 
+- 🏴 ASCII banner  
+- 📊 Profile selection  
+- ⚖ Permission confirmation  
+- 🧩 Module selection  
 
+---
 
+## 🤖 CLI Mode (Automation Friendly)
 
+Example:
 
+```bash
+python recon_ninja.py -t example.com --profile full_suite --subdomains --nuclei --ferox -y
+```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+This runs:
+- 🚀 Full suite profile  
+- 🌐 Subdomain enumeration  
+- 💥 Nuclei scanning  
+- 📂 Directory scan  
+- ⚡ Skips permission prompt (for automation)
