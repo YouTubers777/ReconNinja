@@ -1,0 +1,4 @@
+# ReconNinja v2.0 — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+rich>=13.0.0
