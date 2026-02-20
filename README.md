@@ -112,7 +112,7 @@ cd ReconNinja
 ## 2️⃣ Install Python Dependency
 
 ```bash
-pip install rich
+pip install -r requirements.txt
 ```
 
 ---
