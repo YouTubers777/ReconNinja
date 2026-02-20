@@ -134,7 +134,7 @@ sudo pacman -S nmap
 ## 🖥 Interactive Mode
 
 ```bash
-python recon_ninja.py
+python3 ReconNinja.py
 ```
 
 Displays:
