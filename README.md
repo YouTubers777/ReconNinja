@@ -103,7 +103,7 @@ All other functionality uses Python standard library modules.
 ## 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ReconNinja.git
+git clone https://github.com/YouTubers777/ReconNinja.git
 cd ReconNinja
 ```
 
