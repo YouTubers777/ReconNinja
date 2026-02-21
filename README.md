@@ -1,168 +1,569 @@
-Copy🥷 ReconNinja v2.1
+# 🥷 ReconNinja v2.1
 
-⚔️ All-in-One Automated Reconnaissance Framework for Penetration Testers & Security Researchers
+> ⚔️ All-in-One Automated Reconnaissance Framework for Penetration Testers & Security Researchers
 
 ReconNinja is a powerful Python-based reconnaissance automation framework that streamlines the full recon workflow — from subdomain discovery to vulnerability detection and professional report generation.
 
-⚠️ Legal Notice
-ReconNinja is strictly intended for use against systems you own or have explicit written permission to test.
-Unauthorized scanning is illegal and unethical. Always get written authorization before scanning any target.
+---
 
-🆕 What's New in v2.1
-Fix / ImprovementDetails🐛 File collision fixEach nmap worker now writes to its own subdirectory — no more concurrent timestamp collisions🔐 Shell injection removedAquatone no longer uses /bin/sh -c — stdin piped directly via subprocess🧬 Config mutation fixnmap_opts deep-copied before masscan port injection — orchestrate() is now safe to call multiple times🪣 Error propagationparse_nmap_xml errors now surface in result.errors and the JSON report instead of being silently dropped⚡ Cached tool detectiontool_exists() and detect_seclists() use @lru_cache — no repeated filesystem/PATH scans🌊 Streaming wordlist_dns_brute now streams wordlists line-by-line — safe for 100k+ entry lists✅ Config validationNmapOptions validates timing template and port values at construction time🧹 CleanupRemoved unused imports (Live, Syntax, Text, time)
+## ⚠️ Legal Notice
 
-🚀 Features
-🌐 Subdomain Discovery
+ReconNinja is strictly intended for use against systems you own or have **explicit written permission** to test.  
+Unauthorized scanning is illegal and unethical. Always obtain written authorization before scanning any target.
 
-🔎 Subfinder — fast passive enumeration
-🛰 Amass — comprehensive OSINT enumeration
-⚡ Assetfinder — quick asset discovery
-💣 FFUF — active brute-force via HTTP probing
-🧠 Built-in DNS brute fallback — streaming wordlist resolver, no external deps
-✅ Live DNS verification — multi-threaded resolution check on all discovered subdomains
+---
 
+# 🆕 What's New in v2.1
 
-🔓 Port Scanning
+| Fix / Improvement | Details |
+|-------------------|----------|
+| 🐛 File collision fix | Each Nmap worker writes to its own subdirectory — no more concurrent timestamp collisions |
+| 🔐 Shell injection removed | Aquatone no longer uses `/bin/sh -c` — stdin piped directly via subprocess |
+| 🧬 Config mutation fix | `nmap_opts` deep-copied before masscan injection — `orchestrate()` safe for multiple runs |
+| 🪣 Error propagation | `parse_nmap_xml` errors now surface in `result.errors` and JSON report |
+| ⚡ Cached tool detection | `tool_exists()` and `detect_seclists()` use `@lru_cache` |
+| 🌊 Streaming wordlist | `_dns_brute` streams wordlists line-by-line (safe for 100k+ entries) |
+| ✅ Config validation | `NmapOptions` validates timing templates & port values |
+| 🧹 Cleanup | Removed unused imports |
 
-🛠 Nmap (required) — scripts, version & OS detection
-⚡ Masscan → Nmap pipeline — masscan finds open ports fast, nmap does deep inspection
-🔁 Automatic -Pn retry — seamlessly handles firewalled / ICMP-blocked hosts
-🏷 Risk classification — ports auto-tagged as Critical / High / Medium / Info
+---
 
+# 🚀 Features
 
-📂 Web Enumeration
+## 🌐 Subdomain Discovery
+- 🔎 Subfinder — fast passive enumeration  
+- 🛰 Amass — comprehensive OSINT enumeration  
+- ⚡ Assetfinder — quick asset discovery  
+- 💣 FFUF — active brute-force via HTTP probing  
+- 🧠 Built-in DNS brute fallback — streaming resolver  
+- ✅ Live DNS verification — multi-threaded resolution  
 
-🚀 Feroxbuster — recursive directory brute-forcing
-⚡ FFUF fallback — used when feroxbuster is unavailable
-🔎 WhatWeb — technology fingerprinting
-🛡 Nikto — classic web vulnerability scanner
-💥 Nuclei — template-based vulnerability detection (medium/high/critical)
-📸 Aquatone — automated screenshots of discovered hosts
+---
 
+## 🔓 Port Scanning
+- 🛠 Nmap (required) — scripts, version & OS detection  
+- ⚡ Masscan → Nmap pipeline  
+- 🔁 Automatic `-Pn` retry for blocked hosts  
+- 🏷 Risk classification (Critical / High / Medium / Info)  
 
-📊 Reporting Engine
+---
 
-📁 JSON — machine-readable, full structured output
-🌑 HTML — dark-themed standalone dashboard with stats bar
-📝 Markdown — clean human-readable summary
-📋 Rich terminal table — live open ports summary in the console
+## 📂 Web Enumeration
+- 🚀 Feroxbuster  
+- ⚡ FFUF fallback  
+- 🔎 WhatWeb  
+- 🛡 Nikto  
+- 💥 Nuclei (medium/high/critical)  
+- 📸 Aquatone screenshots  
 
+---
 
-⚡ Performance
+## 📊 Reporting Engine
+- 📁 JSON (structured output)  
+- 🌑 HTML dashboard (dark theme, standalone)  
+- 📝 Markdown summary  
+- 📋 Rich terminal open-port table  
 
-🧵 Concurrent Nmap scanning with isolated per-target output directories
-🧠 Multi-threaded subdomain DNS verification (50 workers)
-🔐 Thread-safe console output and result accumulation
-🌊 Generator-based wordlist streaming (no full-file memory load)
-🧩 Graceful tool degradation — missing tools are skipped, not fatal
-📉 Per-target timeout with worst-case wall time shown before scan starts
+---
 
+# ⚡ Performance
 
-🧠 Scan Profiles
-ProfileDescription⚡ FASTTop 100 ports, no scripts — quick sweep🟢 STANDARDTop 1000 ports + scripts + version detection🔥 THOROUGHAll 65535 ports + OS + version + scripts🕵️ STEALTHSYN scan + T2 timing, no scripts🎛 CUSTOMFully user-defined via interactive prompts🚀 FULL SUITERuns everything: subs → dirs → masscan → nmap → nuclei → screenshots
+- 🧵 Concurrent Nmap workers with isolated output directories  
+- 🧠 50-thread DNS verification  
+- 🔐 Thread-safe console & result accumulation  
+- 🌊 Generator-based wordlist streaming  
+- 🧩 Graceful tool degradation  
+- 📉 Per-target timeout with worst-case time estimate  
 
-🛠 Tech Stack
-Language: Python 3.10+
-Python Dependency:
+---
+
+# 🧠 Scan Profiles
+
+| Profile | Description |
+|----------|-------------|
+| ⚡ FAST | Top 100 ports, no scripts |
+| 🟢 STANDARD | Top 1000 ports + scripts + version detection |
+| 🔥 THOROUGH | All 65535 ports + OS + version + scripts |
+| 🕵️ STEALTH | SYN scan + T2 timing |
+| 🎛 CUSTOM | Fully user-defined |
+| 🚀 FULL SUITE | Subdomains → dirs → masscan → nmap → nuclei → screenshots |
+
+---
+
+# 🛠 Tech Stack
+
+**Language:** Python 3.10+  
+**Dependency:**  
+```
 rich>=13.0.0
-External Tools (optional except nmap):
-ToolRoleRequirednmapPort scanning✅ YessubfinderSubdomain enumerationNoamassSubdomain enumerationNoassetfinderSubdomain enumerationNoffufSubdomain/dir brute-forceNoferoxbusterDirectory scanningNomasscanFast port sweepNowhatwebTech fingerprintingNoniktoWeb vulnerability scanningNonucleiTemplate-based vuln detectionNoaquatoneScreenshotsNo
-Everything else uses the Python standard library.
+```
 
-📦 Installation
-1️⃣ Clone the Repository
-bashgit clone https://github.com/YouTubers777/ReconNinja.git
+## External Tools (Optional except Nmap)
+
+| Tool | Role | Required |
+|------|------|----------|
+| nmap | Port scanning | ✅ Yes |
+| subfinder | Subdomain enumeration | No |
+| amass | Subdomain enumeration | No |
+| assetfinder | Subdomain enumeration | No |
+| ffuf | Subdomain / dir brute-force | No |
+| feroxbuster | Directory scanning | No |
+| masscan | Fast port sweep | No |
+| whatweb | Tech fingerprinting | No |
+| nikto | Web vulnerability scanning | No |
+| nuclei | Template-based vuln detection | No |
+| aquatone | Screenshots | No |
+
+Everything else uses Python’s standard library.
+
+---
+
+# 📦 Installation
+
+## 1️⃣ Clone Repository
+
+```bash
+git clone https://github.com/YouTubers777/ReconNinja.git
 cd ReconNinja
-2️⃣ Install Python Dependency
-bashpip install -r requirements.txt
-3️⃣ Install Nmap (Required)
-Arch / Manjaro:
-bashsudo pacman -S nmap
-Debian / Ubuntu / Kali:
-bashsudo apt install nmap
-macOS:
-bashbrew install nmap
-4️⃣ Install Optional Tools (Recommended)
-The more tools you install, the more capability ReconNinja has. On Kali Linux most are pre-installed.
-bash# Go-based tools
-go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
-go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+```
+
+## 2️⃣ Install Python Dependency
+
+```bash
+pip install -r requirements.txt
+```
+
+## 3️⃣ Install Nmap (Required)
+
+### Arch / Manjaro
+```bash
+sudo pacman -S nmap
+```
+
+### Debian / Ubuntu / Kali
+```bash
+sudo apt install nmap
+```
+
+### macOS
+```bash
+brew install nmap
+```
+
+---
+
+## 4️⃣ Optional Tools (Recommended)
+
+```bash
+# Go tools
+go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 go install github.com/tomnomnom/assetfinder@latest
 go install github.com/ffuf/ffuf/v2@latest
+go install github.com/michenriksen/aquatone@latest
 
 # Apt
 sudo apt install amass feroxbuster whatweb nikto masscan
+```
 
-# Aquatone
-go install github.com/michenriksen/aquatone@latest
-5️⃣ Install SecLists (Recommended for Wordlists)
-bash# Kali / Debian
+---
+
+## 5️⃣ Install SecLists (Recommended)
+
+```bash
 sudo apt install seclists
-
-# Manual
+# OR
 git clone https://github.com/danielmiessler/SecLists.git ~/seclists
+```
 
-▶️ Usage
-🖥 Interactive Mode
-bashpython3 ReconNinja.py
-Launches the full interactive menu:
+---
 
-Tool availability table
-Scan profile selection
-Target input + permission confirmation
-Module toggles (subdomains, dir scan, nuclei, etc.)
+# ▶️ Usage
 
+## 🖥 Interactive Mode
 
-🤖 CLI Mode (Automation Friendly)
-Standard scan:
-bashpython3 ReconNinja.py -t example.com
-Full suite with all modules:
-bashpython3 ReconNinja.py -t example.com --profile full_suite --subdomains --nuclei --ferox --whatweb -y
-Thorough scan, all ports:
-bashpython3 ReconNinja.py -t example.com --profile thorough --all-ports
-Stealth scan:
-bashsudo python3 ReconNinja.py -t example.com --profile stealth
-Check which tools are installed:
-bashpython3 ReconNinja.py --check-tools
+```bash
+python3 ReconNinja.py
+```
 
-📋 CLI Reference
-FlagDescriptionDefault-t, --targetTarget domain or IP(required in CLI mode)-p, --profileScan profilestandard--all-portsScan all 65535 portsOff--top-ports NScan top N ports1000--timingNmap timing (T1–T5)T4--threads NMax concurrent nmap workers20--subdomainsEnable subdomain enumerationOff--feroxEnable directory scanningOff--masscanEnable masscan pre-sweep (needs root)Off--nucleiEnable nuclei scanningOff--niktoEnable nikto scanningOff--whatwebEnable WhatWeb fingerprintingOff--aquatoneEnable Aquatone screenshotsOff--wordlist-sizesmall / medium / largemedium--check-toolsShow tool availability and exit—-y, --yesSkip permission prompt (automation)Off
+Includes:
+- Tool availability table  
+- Scan profile selection  
+- Target input & permission confirmation  
+- Module toggles  
 
-📁 Output Structure
+---
+
+## 🤖 CLI Mode
+
+Standard:
+```bash
+python3 ReconNinja.py -t example.com
+```
+
+Full suite:
+```bash
+python3 ReconNinja.py -t example.com --profile full_suite --subdomains --nuclei --ferox --whatweb -y
+```
+
+Thorough:
+```bash
+python3 ReconNinja.py -t example.com --profile thorough --all-ports
+```
+
+Stealth:
+```bash
+sudo python3 ReconNinja.py -t example.com --profile stealth
+```
+
+Check tools:
+```bash
+python3 ReconNinja.py --check-tools
+```
+
+---
+
+# 📁 Output Structure
+
+```
 reports/
 └── example.com/
-    └── 20240615_143022/
-        ├── scan_config.json          # Scan parameters
-        ├── subdomains_merged.txt     # All live subdomains
-        ├── dirscan.txt               # Directory findings
-        ├── masscan.txt               # Masscan raw output
-        ├── whatweb.txt               # WhatWeb output
-        ├── nikto.txt                 # Nikto output
-        ├── nuclei.txt                # Nuclei findings
-        ├── report.json               # Full structured report
-        ├── report.html               # Dark-themed HTML dashboard
-        ├── report.md                 # Markdown summary
-        ├── api_example_com/          # Per-subdomain nmap output
-        │   ├── nmap_20240615_143045.xml
-        │   └── nmap_20240615_143045.txt
-        └── aquatone/                 # Screenshots (if enabled)
+    └── YYYYMMDD_HHMMSS/
+        ├── scan_config.json
+        ├── subdomains_merged.txt
+        ├── dirscan.txt
+        ├── masscan.txt
+        ├── whatweb.txt
+        ├── nikto.txt
+        ├── nuclei.txt
+        ├── report.json
+        ├── report.html
+        ├── report.md
+        ├── api_example_com/
+        │   ├── nmap_TIMESTAMP.xml
+        │   └── nmap_TIMESTAMP.txt
+        └── aquatone/
+```
 
-🔒 Risk Classification
-ReconNinja automatically classifies open ports by risk level:
-LevelPorts🔴 CriticalFTP, SSH, Telnet, SMTP, DNS, RPC, NetBIOS, IMAP, SNMP, LDAP, SMB, rsh, rlogin🟠 HighHTTP, HTTPS, MySQL, RDP, PostgreSQL, VNC, Redis, HTTP-alt, MSSQL, MongoDB🟡 MediumHTTP-alt, Elasticsearch, Memcached⚪ InfoAll other ports
+---
 
-🧩 Architecture Notes
+# 🔒 Risk Classification
 
-Orchestration is handled by orchestrate() which runs each phase sequentially and passes results forward (e.g. masscan ports feed into nmap's port list)
-Concurrency uses ThreadPoolExecutor — safe because the GIL is released during subprocess and I/O calls
-Thread safety — all console output goes through safe_print() (print lock), result mutations through _RESULT_LOCK
-Tool degradation — every external tool check is gated with tool_exists() (cached); missing tools produce a warning, not a crash
+| Level | Example Ports |
+|-------|--------------|
+| 🔴 Critical | FTP, SSH, Telnet, SMTP, DNS, RPC, NetBIOS, IMAP, SNMP, LDAP, SMB |
+| 🟠 High | HTTP, HTTPS, MySQL, RDP, PostgreSQL, VNC, Redis, MSSQL |
+| 🟡 Medium | Elasticsearch, Memcached |
+| ⚪ Info | All others |
 
+---
 
-🤝 Contributing
-Pull requests welcome. Please test against a local lab (e.g. HackTheBox, TryHackMe, or your own VMs) before submitting.
+# 🧩 Architecture Notes
 
-📄 License
-MIT License — see LICENSE for details.
+- `orchestrate()` controls scan flow  
+- Masscan ports feed directly into Nmap  
+- `ThreadPoolExecutor` handles concurrency  
+- `safe_print()` ensures thread-safe output  
+- `tool_exists()` cached for performance  
+- Missing tools = warning, not crash  
 
-Generated by ReconNinja v2.1 — For authorized testing only.
+---
+
+# 🤝 Contributing
+
+Pull requests welcome.  
+Please test in a lab (HackTheBox, TryHackMe, or your own VMs) before submitting.
+
+---
+
+# 📄 License
+
+MIT License — see LICENSE file.
+
+---
+
+⭐ Generated by ReconNinja v2.1 — For authorized testing only.# 🥷 ReconNinja v2.1
+
+> ⚔️ All-in-One Automated Reconnaissance Framework for Penetration Testers & Security Researchers
+
+ReconNinja is a powerful Python-based reconnaissance automation framework that streamlines the full recon workflow — from subdomain discovery to vulnerability detection and professional report generation.
+
+---
+
+## ⚠️ Legal Notice
+
+ReconNinja is strictly intended for use against systems you own or have **explicit written permission** to test.  
+Unauthorized scanning is illegal and unethical. Always obtain written authorization before scanning any target.
+
+---
+
+# 🆕 What's New in v2.1
+
+| Fix / Improvement | Details |
+|-------------------|----------|
+| 🐛 File collision fix | Each Nmap worker writes to its own subdirectory — no more concurrent timestamp collisions |
+| 🔐 Shell injection removed | Aquatone no longer uses `/bin/sh -c` — stdin piped directly via subprocess |
+| 🧬 Config mutation fix | `nmap_opts` deep-copied before masscan injection — `orchestrate()` safe for multiple runs |
+| 🪣 Error propagation | `parse_nmap_xml` errors now surface in `result.errors` and JSON report |
+| ⚡ Cached tool detection | `tool_exists()` and `detect_seclists()` use `@lru_cache` |
+| 🌊 Streaming wordlist | `_dns_brute` streams wordlists line-by-line (safe for 100k+ entries) |
+| ✅ Config validation | `NmapOptions` validates timing templates & port values |
+| 🧹 Cleanup | Removed unused imports |
+
+---
+
+# 🚀 Features
+
+## 🌐 Subdomain Discovery
+- 🔎 Subfinder — fast passive enumeration  
+- 🛰 Amass — comprehensive OSINT enumeration  
+- ⚡ Assetfinder — quick asset discovery  
+- 💣 FFUF — active brute-force via HTTP probing  
+- 🧠 Built-in DNS brute fallback — streaming resolver  
+- ✅ Live DNS verification — multi-threaded resolution  
+
+---
+
+## 🔓 Port Scanning
+- 🛠 Nmap (required) — scripts, version & OS detection  
+- ⚡ Masscan → Nmap pipeline  
+- 🔁 Automatic `-Pn` retry for blocked hosts  
+- 🏷 Risk classification (Critical / High / Medium / Info)  
+
+---
+
+## 📂 Web Enumeration
+- 🚀 Feroxbuster  
+- ⚡ FFUF fallback  
+- 🔎 WhatWeb  
+- 🛡 Nikto  
+- 💥 Nuclei (medium/high/critical)  
+- 📸 Aquatone screenshots  
+
+---
+
+## 📊 Reporting Engine
+- 📁 JSON (structured output)  
+- 🌑 HTML dashboard (dark theme, standalone)  
+- 📝 Markdown summary  
+- 📋 Rich terminal open-port table  
+
+---
+
+# ⚡ Performance
+
+- 🧵 Concurrent Nmap workers with isolated output directories  
+- 🧠 50-thread DNS verification  
+- 🔐 Thread-safe console & result accumulation  
+- 🌊 Generator-based wordlist streaming  
+- 🧩 Graceful tool degradation  
+- 📉 Per-target timeout with worst-case time estimate  
+
+---
+
+# 🧠 Scan Profiles
+
+| Profile | Description |
+|----------|-------------|
+| ⚡ FAST | Top 100 ports, no scripts |
+| 🟢 STANDARD | Top 1000 ports + scripts + version detection |
+| 🔥 THOROUGH | All 65535 ports + OS + version + scripts |
+| 🕵️ STEALTH | SYN scan + T2 timing |
+| 🎛 CUSTOM | Fully user-defined |
+| 🚀 FULL SUITE | Subdomains → dirs → masscan → nmap → nuclei → screenshots |
+
+---
+
+# 🛠 Tech Stack
+
+**Language:** Python 3.10+  
+**Dependency:**  
+```
+rich>=13.0.0
+```
+
+## External Tools (Optional except Nmap)
+
+| Tool | Role | Required |
+|------|------|----------|
+| nmap | Port scanning | ✅ Yes |
+| subfinder | Subdomain enumeration | No |
+| amass | Subdomain enumeration | No |
+| assetfinder | Subdomain enumeration | No |
+| ffuf | Subdomain / dir brute-force | No |
+| feroxbuster | Directory scanning | No |
+| masscan | Fast port sweep | No |
+| whatweb | Tech fingerprinting | No |
+| nikto | Web vulnerability scanning | No |
+| nuclei | Template-based vuln detection | No |
+| aquatone | Screenshots | No |
+
+Everything else uses Python’s standard library.
+
+---
+
+# 📦 Installation
+
+## 1️⃣ Clone Repository
+
+```bash
+git clone https://github.com/YouTubers777/ReconNinja.git
+cd ReconNinja
+```
+
+## 2️⃣ Install Python Dependency
+
+```bash
+pip install -r requirements.txt
+```
+
+## 3️⃣ Install Nmap (Required)
+
+### Arch / Manjaro
+```bash
+sudo pacman -S nmap
+```
+
+### Debian / Ubuntu / Kali
+```bash
+sudo apt install nmap
+```
+
+### macOS
+```bash
+brew install nmap
+```
+
+---
+
+## 4️⃣ Optional Tools (Recommended)
+
+```bash
+# Go tools
+go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+go install github.com/tomnomnom/assetfinder@latest
+go install github.com/ffuf/ffuf/v2@latest
+go install github.com/michenriksen/aquatone@latest
+
+# Apt
+sudo apt install amass feroxbuster whatweb nikto masscan
+```
+
+---
+
+## 5️⃣ Install SecLists (Recommended)
+
+```bash
+sudo apt install seclists
+# OR
+git clone https://github.com/danielmiessler/SecLists.git ~/seclists
+```
+
+---
+
+# ▶️ Usage
+
+## 🖥 Interactive Mode
+
+```bash
+python3 ReconNinja.py
+```
+
+Includes:
+- Tool availability table  
+- Scan profile selection  
+- Target input & permission confirmation  
+- Module toggles  
+
+---
+
+## 🤖 CLI Mode
+
+Standard:
+```bash
+python3 ReconNinja.py -t example.com
+```
+
+Full suite:
+```bash
+python3 ReconNinja.py -t example.com --profile full_suite --subdomains --nuclei --ferox --whatweb -y
+```
+
+Thorough:
+```bash
+python3 ReconNinja.py -t example.com --profile thorough --all-ports
+```
+
+Stealth:
+```bash
+sudo python3 ReconNinja.py -t example.com --profile stealth
+```
+
+Check tools:
+```bash
+python3 ReconNinja.py --check-tools
+```
+
+---
+
+# 📁 Output Structure
+
+```
+reports/
+└── example.com/
+    └── YYYYMMDD_HHMMSS/
+        ├── scan_config.json
+        ├── subdomains_merged.txt
+        ├── dirscan.txt
+        ├── masscan.txt
+        ├── whatweb.txt
+        ├── nikto.txt
+        ├── nuclei.txt
+        ├── report.json
+        ├── report.html
+        ├── report.md
+        ├── api_example_com/
+        │   ├── nmap_TIMESTAMP.xml
+        │   └── nmap_TIMESTAMP.txt
+        └── aquatone/
+```
+
+---
+
+# 🔒 Risk Classification
+
+| Level | Example Ports |
+|-------|--------------|
+| 🔴 Critical | FTP, SSH, Telnet, SMTP, DNS, RPC, NetBIOS, IMAP, SNMP, LDAP, SMB |
+| 🟠 High | HTTP, HTTPS, MySQL, RDP, PostgreSQL, VNC, Redis, MSSQL |
+| 🟡 Medium | Elasticsearch, Memcached |
+| ⚪ Info | All others |
+
+---
+
+# 🧩 Architecture Notes
+
+- `orchestrate()` controls scan flow  
+- Masscan ports feed directly into Nmap  
+- `ThreadPoolExecutor` handles concurrency  
+- `safe_print()` ensures thread-safe output  
+- `tool_exists()` cached for performance  
+- Missing tools = warning, not crash  
+
+---
+
+# 🤝 Contributing
+
+Pull requests welcome.  
+Please test in a lab (HackTheBox, TryHackMe, or your own VMs) before submitting.
+
+---
+
+# 📄 License
+
+MIT License — see LICENSE file.
+
+---
+
+⭐ Generated by ReconNinja v2.1 — For authorized testing only.
