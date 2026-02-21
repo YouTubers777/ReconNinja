@@ -1,52 +1,35 @@
 import pytest
-from unittest.mock import patch, MagicMock
-from my_module import (  # replace with actual module
-    utility_function_1,
-    utility_function_2,
-    ToolError,
-    DataclassModel,
-    parse_nmap_output,
-    orchestrate_workflow,
-)
+from unittest.mock import patch
+from recon_ninja import major_function_1, major_function_2  # Import major functions from ReconNinja
 
-# Fixtures
 @pytest.fixture
-def setup_mock_data():
-    return {'key': 'value'}
+def setup_test_data():
+    # Setup any necessary test data
+    return {
+        "data": "test_data",
+        "expected": "expected_result"
+    }
 
-# Parametrized tests
-@pytest.mark.parametrize('input_data, expected', [
-    (1, 2),
-    (2, 3),
-])
-def test_utility_function_1(input_data, expected):
-    assert utility_function_1(input_data) == expected
+# Unit tests
+def test_major_function_1(setup_test_data):
+    result = major_function_1(setup_test_data["data"])
+    assert result == setup_test_data["expected"]
 
-# Testing with mocking
-@patch('my_module.tool_exists')  # replace with the actual import path
-def test_tool_exists(mock_tool_exists):
-    mock_tool_exists.return_value = True
-    assert tool_exists('some_tool') is True
 
-@patch('my_module.run_cmd')
-def test_run_cmd(mock_run_cmd):
-    mock_run_cmd.return_value = MagicMock(stdout='command output')
-    output = run_cmd('ls')
-    assert output.stdout == 'command output'
+def test_major_function_2():
+    result = major_function_2("another_test_data")
+    assert result is not None
 
-# Testing dataclass validation
-def test_dataclass_model_validation():
-    with pytest.raises(ValueError):
-        DataclassModel(invalid_field='invalid')
+# Integration tests
+def test_integration_of_functions():
+    # Assuming func1 and func2 are supposed to work together
+    data = major_function_1("initial_data")
+    result = major_function_2(data)
+    assert result == "expected_integration_result"
 
-# Nmap parsing tests
-def test_parse_nmap_output(setup_mock_data):
-    result = parse_nmap_output(setup_mock_data)
-    assert result['key'] == 'value'  # Replace with actual expected output
-
-# Integration test for orchestration workflow
-@patch('my_module.run_cmd')
-def test_orchestrate_workflow(mock_run_cmd):
-    mock_run_cmd.return_value = MagicMock(stdout='orchestrated output')
-    result = orchestrate_workflow('input_data')
-    assert result == 'orchestrated output'
+# Mocking tests
+@patch('recon_ninja.external_api_call')  # Mocking an external API call
+def test_external_api_call(mock_api):
+    mock_api.return_value = "mocked_response"
+    result = external_function_using_api("input_data")
+    assert result == "expected_result"
