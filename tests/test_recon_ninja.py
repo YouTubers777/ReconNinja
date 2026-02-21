@@ -1,46 +1,52 @@
 import pytest
+from unittest.mock import patch, MagicMock
+from my_module import (  # replace with actual module
+    utility_function_1,
+    utility_function_2,
+    ToolError,
+    DataclassModel,
+    parse_nmap_output,
+    orchestrate_workflow,
+)
 
-# Test suite for ReconNinja
-
-# Test fixtures
+# Fixtures
 @pytest.fixture
-def sample_data():
+def setup_mock_data():
     return {'key': 'value'}
 
-# Unit tests for core functions
-class TestCoreFunctions:
-    def test_function_a(self, sample_data):
-        assert function_a(sample_data) == expected_result_a
+# Parametrized tests
+@pytest.mark.parametrize('input_data, expected', [
+    (1, 2),
+    (2, 3),
+])
+def test_utility_function_1(input_data, expected):
+    assert utility_function_1(input_data) == expected
 
-    def test_function_b(self, sample_data):
-        assert function_b(sample_data) == expected_result_b
+# Testing with mocking
+@patch('my_module.tool_exists')  # replace with the actual import path
+def test_tool_exists(mock_tool_exists):
+    mock_tool_exists.return_value = True
+    assert tool_exists('some_tool') is True
 
-# Integration tests for orchestration workflow
-class TestOrchestration:
-    def test_orchestration_workflow(self):
-        result = orchestration_workflow()
-        assert result == expected_workflow_result
+@patch('my_module.run_cmd')
+def test_run_cmd(mock_run_cmd):
+    mock_run_cmd.return_value = MagicMock(stdout='command output')
+    output = run_cmd('ls')
+    assert output.stdout == 'command output'
 
-# Tests for tool detection
-class TestToolDetection:
-    def test_tool_detection(self):
-        result = detect_tools(sample_data)
-        assert 'expected_tool' in result
-
-# DNS brute force tests
-class TestDNSBruteForce:
-    def test_dns_brute_force(self):
-        result = dns_brute_force(sample_data)
-        assert result == expected_brute_force_result
+# Testing dataclass validation
+def test_dataclass_model_validation():
+    with pytest.raises(ValueError):
+        DataclassModel(invalid_field='invalid')
 
 # Nmap parsing tests
-class TestNmapParsing:
-    def test_nmap_parsing(self):
-        result = parse_nmap_output(sample_data)
-        assert result == expected_parsed_data
+def test_parse_nmap_output(setup_mock_data):
+    result = parse_nmap_output(setup_mock_data)
+    assert result['key'] == 'value'  # Replace with actual expected output
 
-# Report generation tests
-class TestReportGeneration:
-    def test_report_generation(self):
-        report = generate_report(sample_data)
-        assert report == expected_report
+# Integration test for orchestration workflow
+@patch('my_module.run_cmd')
+def test_orchestrate_workflow(mock_run_cmd):
+    mock_run_cmd.return_value = MagicMock(stdout='orchestrated output')
+    result = orchestrate_workflow('input_data')
+    assert result == 'orchestrated output'
