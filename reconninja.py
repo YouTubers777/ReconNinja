@@ -55,7 +55,23 @@ from utils.models import ScanConfig, ScanProfile, NmapOptions
 from core.orchestrator import orchestrate, print_tool_status
 
 APP_NAME = "ReconNinja"
-VERSION  = "3.0.0"
+VERSION  = "3.0.1"
+
+
+
+# ─── Safe input helpers ───────────────────────────────────────────────────────
+
+def _prompt_int(label: str, default: int, min_val: int = 1, max_val: int = 65535) -> int:
+    """Keep asking until the user enters a valid integer in range."""
+    while True:
+        raw = Prompt.ask(label, default=str(default))
+        try:
+            val = int(raw)
+            if min_val <= val <= max_val:
+                return val
+            console.print(f"[danger]Enter a number between {min_val} and {max_val}[/]")
+        except ValueError:
+            console.print(f"[danger]'{raw}' is not a number — please enter digits only[/]")
 
 
 # ─── Interactive config builder ───────────────────────────────────────────────
@@ -73,15 +89,15 @@ def prompt_nmap_opts(profile: ScanProfile) -> NmapOptions:
         return NmapOptions(
             top_ports=1000, stealth=True, scripts=False, version_detection=False, timing="T2"
         )
-    if profile == ScanProfile.PORT_ONLY:
-        return NmapOptions(top_ports=1000, scripts=False, version_detection=True, timing="T4")
+    if profile in (ScanProfile.PORT_ONLY, ScanProfile.FULL_SUITE):
+        return NmapOptions(top_ports=1000, scripts=True, version_detection=True, timing="T4")
 
-    # CUSTOM
+    # CUSTOM — only reached when profile == ScanProfile.CUSTOM
     console.print(Panel.fit("[header]Custom Scan Builder[/]"))
     all_ports = Confirm.ask("Scan ALL ports (-p-)?", default=False)
     top_ports = 0
     if not all_ports:
-        top_ports = int(Prompt.ask("Top ports to scan", default="1000"))
+        top_ports = _prompt_int("Top ports to scan", default=1000, min_val=1, max_val=65535)
     return NmapOptions(
         all_ports        = all_ports,
         top_ports        = top_ports,
@@ -165,7 +181,7 @@ def build_config_interactive() -> ScanConfig | None:
         cfg.run_aquatone    = Confirm.ask("Screenshots (aquatone/gowitness)?",    default=False)
         cfg.run_ai_analysis = Confirm.ask("AI threat analysis?",                  default=True)
         if cfg.run_masscan:
-            cfg.masscan_rate = int(Prompt.ask("Masscan rate (pps)", default="5000"))
+            cfg.masscan_rate = _prompt_int("Masscan rate (pps)", default=5000, min_val=100, max_val=1000000)
         cfg.wordlist_size = Prompt.ask(
             "Wordlist size", choices=["small","medium","large"], default="medium"
         )
