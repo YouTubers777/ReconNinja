@@ -306,42 +306,66 @@ def _top_ports(n: int) -> list[int]:
 
 # ─── RustScan ─────────────────────────────────────────────────────────────────
 
-def run_rustscan(target: str, out_folder: Path) -> set[int]:
+def run_rustscan(
+    target: str, out_folder: Path, all_ports: bool = True
+) -> set[int]:
     """
-    Ultra-fast port discovery with RustScan.
-    Returns set of open ports to feed into nmap.
+    Port DISCOVERY only — RustScan finds every open port as fast as possible.
+    Does NOT run nmap internally (no -- pass-through).
+    Returns raw set of open port numbers for Nmap to deep-analyse.
+
+    This is the PRIMARY port scanner. Nmap never sweeps ports — it only does
+    service/version fingerprinting on what RustScan hands it.
     """
     if not tool_exists("rustscan"):
-        safe_print("[dim]rustscan not found — skipping fast sweep[/]")
+        safe_print("[warning]rustscan not found — falling back to async TCP scan[/]")
         return set()
 
     ensure_dir(out_folder)
-    out_file = out_folder / "rustscan.txt"
+    out_file = out_folder / "rustscan_ports.txt"
 
     cmd = [
         "rustscan",
         "-a", target,
         "--ulimit", "5000",
         "--range", "1-65535",
-        "--", "-sV",
-        "-oN", str(out_file),
+        "--greppable",          # machine-readable output
     ]
-    safe_print(f"[info]▶ RustScan → {target}[/]")
-    rc, stdout, stderr = run_cmd(cmd, timeout=300)
+
+    safe_print(f"[info]▶ RustScan → {target} (all 65535 ports)[/]")
+    rc, stdout, stderr = run_cmd(cmd, timeout=600)
 
     open_ports: set[int] = set()
     combined = stdout + stderr
+
     for line in combined.splitlines():
         line = line.strip()
-        if line.startswith("Open") and ":" in line:
+        # Greppable format:  Host: 192.168.0.105 ()  Ports: 22/open/tcp, 80/open/tcp
+        if "Ports:" in line:
+            ports_section = line.split("Ports:")[-1]
+            for entry in ports_section.split(","):
+                entry = entry.strip()
+                if "/open/" in entry:
+                    with contextlib.suppress(ValueError):
+                        open_ports.add(int(entry.split("/")[0]))
+        # Plain "Open" format fallback
+        elif line.startswith("Open") and ":" in line:
             with contextlib.suppress(ValueError):
-                port = int(line.split(":")[-1].strip())
-                open_ports.add(port)
+                open_ports.add(int(line.split(":")[-1].strip()))
+
+    # Save port list
+    out_file.write_text(
+        f"# RustScan — {target}\n" +
+        "\n".join(str(p) for p in sorted(open_ports))
+    )
 
     if open_ports:
-        safe_print(f"[success]✔ RustScan: {len(open_ports)} open ports[/]")
+        safe_print(
+            f"[success]✔ RustScan: {len(open_ports)} open ports → "
+            f"{', '.join(str(p) for p in sorted(open_ports))}[/]"
+        )
     else:
-        safe_print("[dim]RustScan: no open ports found[/]")
+        safe_print("[warning]RustScan: no open ports found[/]")
 
     return open_ports
 
@@ -436,50 +460,108 @@ def build_nmap_cmd(
     ]
 
 
-def run_nmap(
-    target: str, opts: NmapOptions, out_folder: Path
+def run_nmap_service_scan(
+    target: str,
+    open_ports: set[int],
+    out_folder: Path,
+    scripts: bool = True,
+    version_detection: bool = True,
+    timing: str = "T4",
+    extra_flags: Optional[list[str]] = None,
 ) -> tuple[list[HostResult], Path, Path, list[str]]:
-    """Returns (hosts, xml_path, txt_path, errors)."""
+    """
+    SERVICE / VERSION ANALYSIS ONLY — Nmap never discovers ports itself.
+
+    Pipeline:
+      RustScan / AsyncScan  →  finds open ports
+      run_nmap_service_scan →  fingerprints ONLY those ports
+
+    Flags always used:
+      -sT   TCP connect scan (works without root)
+      -Pn   skip host discovery (ports already confirmed open)
+      -sV   version detection
+      -sC   default scripts (optional, on by default)
+      -p<ports>  only confirmed-open ports — no sweep
+
+    Returns (hosts, xml_path, txt_path, errors).
+    """
+    if not open_ports:
+        return [], Path("/dev/null"), Path("/dev/null"), ["No open ports to analyse"]
+
     ensure_dir(out_folder)
+
+    port_str   = ",".join(str(p) for p in sorted(open_ports))
     stamp      = timestamp()
     xml_out    = out_folder / f"nmap_{stamp}.xml"
     normal_out = out_folder / f"nmap_{stamp}.txt"
 
-    cmd = build_nmap_cmd(target, opts, xml_out, normal_out)
-    safe_print(f"[info]▶ Nmap: {' '.join(cmd)}[/]")
+    cmd = [
+        "nmap",
+        "-sT",          # TCP connect — no root required
+        "-Pn",          # host already confirmed up by RustScan/async
+        f"-{timing}",
+        "-p", port_str,
+    ]
+    if version_detection:
+        cmd.append("-sV")
+    if scripts:
+        cmd.append("-sC")
+    if extra_flags:
+        cmd.extend(extra_flags)
+    cmd += ["-oX", str(xml_out), "-oN", str(normal_out), target]
 
+    safe_print(f"[info]▶ Nmap service scan: {' '.join(cmd)}[/]")
     rc, stdout, stderr = run_cmd(cmd, timeout=NMAP_PER_TARGET_TIMEOUT)
-
-    combined = stdout + stderr
-    if "Host seems down" in combined and "-Pn" not in cmd:
-        safe_print("[warning]Host seems down — retrying with -Pn[/]")
-        opts_pn = NmapOptions(**{**asdict(opts), "extra_flags": opts.extra_flags + ["-Pn"]})
-        stamp      = timestamp()
-        xml_out    = out_folder / f"nmap_{stamp}_pn.xml"
-        normal_out = out_folder / f"nmap_{stamp}_pn.txt"
-        cmd = build_nmap_cmd(target, opts_pn, xml_out, normal_out)
-        rc, stdout, stderr = run_cmd(cmd, timeout=NMAP_PER_TARGET_TIMEOUT)
 
     xml_text = xml_out.read_text(encoding="utf-8", errors="ignore") if xml_out.exists() else ""
     hosts, errors = parse_nmap_xml(xml_text)
     if rc == 124:
-        errors.append(f"nmap timed out scanning {target}")
+        errors.append(f"nmap service scan timed out for {target}")
 
     return hosts, xml_out, normal_out, errors
+
+
+# Legacy alias so old call-sites still compile
+def run_nmap(
+    target: str, opts: NmapOptions, out_folder: Path,
+    force_pn: bool = False,
+) -> tuple[list[HostResult], Path, Path, list[str]]:
+    """Thin legacy wrapper around run_nmap_service_scan."""
+    port_set: set[int] = set()
+    for flag in opts.extra_flags:
+        if flag.startswith("-p") and len(flag) > 2:
+            for part in flag[2:].split(","):
+                with contextlib.suppress(ValueError):
+                    port_set.add(int(part.strip()))
+    clean_flags = [f for f in opts.extra_flags
+                   if not f.startswith("-p") and f not in ("-Pn", "-sT", "-sS")]
+    return run_nmap_service_scan(
+        target=target, open_ports=port_set, out_folder=out_folder,
+        scripts=opts.scripts, version_detection=opts.version_detection,
+        timing=opts.timing, extra_flags=clean_flags,
+    )
 
 
 # ─── Nmap worker (threaded) ───────────────────────────────────────────────────
 
 def nmap_worker(
-    subdomain: str, opts: NmapOptions, base_out: Path
+    subdomain: str,
+    open_ports: set[int],
+    out_folder: Path,
+    scripts: bool = True,
+    version_detection: bool = True,
+    timing: str = "T4",
 ) -> tuple[str, list[HostResult], list[str]]:
     """
-    Per-subdomain worker. Each gets its own output sub-directory.
-    If AsyncTCPScanner already found open ports, they are injected
-    into nmap_opts.extra_flags so nmap only scans those ports (fast).
+    Per-subdomain service-analysis worker.
+    open_ports MUST come from RustScan/async — Nmap will NOT sweep.
     """
-    worker_dir = ensure_dir(base_out / sanitize_dirname(subdomain))
-    hosts, _, _, errors = run_nmap(subdomain, opts, worker_dir)
+    worker_dir = ensure_dir(out_folder / sanitize_dirname(subdomain))
+    hosts, _, _, errors = run_nmap_service_scan(
+        target=subdomain, open_ports=open_ports,
+        out_folder=worker_dir, scripts=scripts,
+        version_detection=version_detection, timing=timing,
+    )
     for h in hosts:
         h.source_subdomain = subdomain
     return subdomain, hosts, errors
