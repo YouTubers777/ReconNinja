@@ -114,10 +114,12 @@ class ScanConfig:
     run_ai_analysis:  bool = False
 
     # Tuning
-    masscan_rate:     int  = 5000
-    threads:          int  = 20
-    wordlist_size:    str  = "medium"
-    output_dir:       str  = "reports"
+    masscan_rate:       int  = 5000
+    threads:            int  = 20
+    wordlist_size:      str  = "medium"
+    output_dir:         str  = "reports"
+    async_concurrency:  int  = 1000   # asyncio coroutines for TCP connect scan
+    async_timeout:      float = 1.5  # seconds per TCP connect attempt
 
     def to_dict(self) -> dict:
         d = asdict(self)
