@@ -3,7 +3,7 @@
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d0d0d,50:00d4ff,100:7c3aed&height=200&section=header&text=ReconNinja&fontSize=80&fontColor=ffffff&fontAlignY=38&desc=v3.1%20%E2%80%94%20Elite%20Recon%20Framework&descSize=20&descAlignY=60&descColor=00d4ff&animation=fadeIn" />
 
 [![Python](https://img.shields.io/badge/Python-3.10+-FFD43B?style=for-the-badge&logo=python&logoColor=black)](https://python.org)
-[![Version](https://img.shields.io/badge/Version-3.1-00d4ff?style=for-the-badge&logo=buffer&logoColor=white)](https://github.com/YouTubers777/ReconNinja)
+[![Version](https://img.shields.io/badge/Version-3.1.0-00d4ff?style=for-the-badge&logo=buffer&logoColor=white)](https://github.com/YouTubers777/ReconNinja)
 [![License](https://img.shields.io/badge/License-MIT-7c3aed?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](https://github.com/YouTubers777/ReconNinja/blob/main/LICENSE)
 [![Stars](https://img.shields.io/github/stars/YouTubers777/ReconNinja?style=for-the-badge&logo=github&color=ff6b6b&logoColor=white)](https://github.com/YouTubers777/ReconNinja/stargazers)
 [![Status](https://img.shields.io/badge/Status-Active-22c55e?style=for-the-badge&logo=statuspage&logoColor=white)](https://github.com/YouTubers777/ReconNinja)
@@ -11,7 +11,7 @@
 <br/>
 
 > **⚡ Automated recon framework for pentesters & bug bounty hunters.**
-> Chains 13 phases: subdomain enum → fast port scan → Nmap → httpx → dir brute → Nuclei → AI threat analysis → HTML report.
+> Chains 14 phases: subdomain enum → **async TCP scan** → RustScan → Nmap → httpx → dir brute → Nuclei → AI threat analysis → HTML report.
 
 <br/>
 
@@ -21,6 +21,31 @@ Unauthorized use against systems you don't own is illegal.
 ```
 
 <br/>
+
+</div>
+
+---
+
+<div align="center">
+
+## ╔══ WHAT'S NEW IN v3.1 ══╗
+
+</div>
+
+<br/>
+
+<div align="center">
+
+| | Feature | Details |
+|:---:|:---|:---|
+| 🆕 | **Built-in Async TCP Scanner** | Pure Python asyncio — no root, no external tools needed |
+| 🆕 | **Banner Grabbing** | Instant service hints on open ports before Nmap runs |
+| 🆕 | **Surgical Nmap** | Nmap only deep-scans confirmed-open ports — dramatically faster |
+| 🆕 | **`--async-concurrency`** | Tune simultaneous TCP probes (default: 1000) |
+| 🆕 | **`--async-timeout`** | Per-connect timeout in seconds (default: 1.5s) |
+| 🔧 | **RustScan now merges** | Union of async + RustScan results for maximum coverage |
+| 🐛 | **Masscan rate crash fixed** | `int("y")` ValueError on non-numeric input |
+| 🐛 | **Full Suite nmap builder** | No longer triggers confusing custom nmap prompt |
 
 </div>
 
@@ -39,28 +64,57 @@ TARGET INPUT
     │
     ▼
 ╔═══════════════════════════════════════════════════════════════════════╗
-║              THE 13-PHASE RECON PIPELINE                             ║
+║              THE 14-PHASE RECON PIPELINE                             ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║                                                                       ║
-║   PHASE 01  ░  Passive Recon       subfinder · amass · crt.sh        ║
-║   PHASE 02  ░  Fast Port Scan      RustScan (ulimit 5000)            ║
-║   PHASE 03  ░  Masscan Sweep       65535 ports at wire speed         ║
-║   PHASE 04  ░  Deep Nmap           Concurrent · per-target dirs      ║
-║   PHASE 05  ░  Live Web Detection  httpx · status · tech stack       ║
-║   PHASE 06  ░  Dir Brute Force     feroxbuster → ffuf → dirsearch    ║
-║   PHASE 07  ░  Tech Fingerprint    WhatWeb + httpx combined          ║
-║   PHASE 08  ░  Nikto Web Scan      Headers · misconfigs · CVEs       ║
-║   PHASE 09  ░  Nuclei Templates    medium · high · critical          ║
-║   PHASE 10  ░  Screenshots         Aquatone → gowitness fallback     ║
-║   PHASE 11  ░  AI Threat Analysis  No API key required               ║
-║   PHASE 12  ░  Plugins             Auto-discovered from plugins/     ║
-║   PHASE 13  ░  Reports             JSON · HTML Dashboard · Markdown  ║
+║   PHASE 01  ░  Passive Recon         subfinder · amass · crt.sh      ║
+║   PHASE 02  ░  Async TCP Scan  🆕    asyncio · banner grab · no root ║
+║   PHASE 02b ░  RustScan               merges with async results      ║
+║   PHASE 03  ░  Masscan Sweep          65535 ports at wire speed      ║
+║   PHASE 04  ░  Deep Nmap              surgical · confirmed ports only ║
+║   PHASE 05  ░  Live Web Detection     httpx · status · tech stack    ║
+║   PHASE 06  ░  Dir Brute Force        feroxbuster → ffuf → dirsearch ║
+║   PHASE 07  ░  Tech Fingerprint       WhatWeb + httpx combined       ║
+║   PHASE 08  ░  Nikto Web Scan         Headers · misconfigs · CVEs    ║
+║   PHASE 09  ░  Nuclei Templates       medium · high · critical       ║
+║   PHASE 10  ░  Screenshots            Aquatone → gowitness fallback  ║
+║   PHASE 11  ░  AI Threat Analysis     No API key required            ║
+║   PHASE 12  ░  Plugins                Auto-discovered from plugins/  ║
+║   PHASE 13  ░  Reports                JSON · HTML Dashboard · MD     ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
     │
     ▼
 OUTPUT (reports/target/timestamp/)
 ```
+
+---
+
+<div align="center">
+
+## ╔══ HOW THE ASYNC SCANNER WORKS ══╗
+
+</div>
+
+<br/>
+
+```
+For each port (up to 1000 concurrent via asyncio.Semaphore):
+
+  asyncio.open_connection(host, port)   ← full TCP 3-way handshake
+    │
+    ├── Connection succeeds   →  OPEN      →  banner grab (SSH/HTTP/etc)
+    ├── ConnectionRefusedError →  CLOSED   →  RST received, skip
+    └── asyncio.TimeoutError  →  FILTERED  →  silently dropped
+
+  Results feed directly into Nmap:
+  nmap -sC -sV -p22,80,443,...   ← only confirmed-open ports
+  instead of:
+  nmap -sC -sV --top-ports 1000  ← scanning hundreds of closed ports
+```
+
+> No root required — unlike `-sS` SYN scan which needs raw sockets.
+> Equivalent to `nmap -sT` but implemented in pure asyncio for maximum speed.
 
 ---
 
@@ -76,11 +130,11 @@ OUTPUT (reports/target/timestamp/)
 
 | 🔍 Recon | ⚡ Speed | 🛡️ Vuln | 📊 Output |
 |:---:|:---:|:---:|:---:|
-| subfinder | RustScan | Nuclei JSON | Dark HTML Dashboard |
-| amass | Masscan | Nikto | Structured JSON |
-| assetfinder | Concurrent Nmap | CVE Banner Check | Markdown Report |
-| crt.sh (pure Python) | 20 parallel workers | Plugin Vulns | per-scan scan.log |
-| DNS verification | Auto -Pn retry | AI Risk Summary | Live progress bars |
+| subfinder | **Async TCP Scanner** 🆕 | Nuclei JSON | Dark HTML Dashboard |
+| amass | RustScan (merged) | Nikto | Structured JSON |
+| assetfinder | Masscan | CVE Banner Check | Markdown Report |
+| crt.sh (pure Python) | Concurrent Nmap | Plugin Vulns | per-scan scan.log |
+| DNS verification | **Banner Grabbing** 🆕 | AI Risk Summary | Live progress bars |
 | httpx live probe | Per-target timeout | CVSS severity sort | Color-coded terminal |
 
 </div>
@@ -107,7 +161,7 @@ pip install rich
 python reconninja.py --check-tools
 ```
 
-> `rich` is the **only hard requirement**. ReconNinja gracefully skips any tool not found on your system.
+> `rich` is the **only hard requirement**. The async TCP scanner is pure Python — zero external tools needed to start scanning.
 
 <br/>
 
@@ -193,6 +247,9 @@ python reconninja.py -t example.com -p stealth -y
 
 # Thorough — all ports, OS detection, scripts
 python reconninja.py -t example.com -p thorough --ai -y
+
+# Tune async scanner for unstable/high-latency networks
+python reconninja.py -t 10.0.0.1 --async-concurrency 200 --async-timeout 3.0 -y
 ```
 
 <br/>
@@ -201,34 +258,38 @@ python reconninja.py -t example.com -p thorough --ai -y
 
 ```
 TARGET & PROFILE
-  -t / --target          Domain · IP · CIDR · /path/to/list.txt
-  -p / --profile         fast · standard · thorough · stealth
-                         custom · full_suite · web_only · port_only
+  -t / --target            Domain · IP · CIDR · /path/to/list.txt
+  -p / --profile           fast · standard · thorough · stealth
+                           custom · full_suite · web_only · port_only
 
 NMAP TUNING
-  --all-ports            Scan all 65535 ports (-p-)
-  --top-ports N          Top N ports (default: 1000)
-  --timing T1-T5         Nmap timing (default: T4)
-  --threads N            Parallel workers (default: 20)
+  --all-ports              Scan all 65535 ports (-p-)
+  --top-ports N            Top N ports (default: 1000)
+  --timing T1-T5           Nmap timing (default: T4)
+  --threads N              Parallel workers (default: 20)
+
+ASYNC TCP SCANNER  🆕
+  --async-concurrency N    Simultaneous TCP probes (default: 1000)
+  --async-timeout SECS     Connect timeout per port (default: 1.5)
 
 FEATURE TOGGLES
-  --subdomains           Subdomain enumeration
-  --rustscan             RustScan pre-sweep
-  --httpx                httpx live web detection
-  --ferox                Directory brute force
-  --masscan              Masscan sweep (root required)
-  --nuclei               Nuclei vuln templates
-  --nikto                Nikto web scan
-  --whatweb              WhatWeb fingerprinting
-  --aquatone             Screenshot capture
-  --ai                   AI threat analysis
+  --subdomains             Subdomain enumeration
+  --rustscan               RustScan sweep (merged with async results)
+  --httpx                  httpx live web detection
+  --ferox                  Directory brute force
+  --masscan                Masscan sweep (root required)
+  --nuclei                 Nuclei vuln templates
+  --nikto                  Nikto web scan
+  --whatweb                WhatWeb fingerprinting
+  --aquatone               Screenshot capture
+  --ai                     AI threat analysis
 
 OTHER
-  --wordlist-size        small · medium · large (default: medium)
-  --masscan-rate N       Packets/sec (default: 5000)
-  --output DIR           Output directory (default: reports/)
-  --check-tools          Show installed tool status and exit
-  -y / --yes             Skip permission prompt (automation mode)
+  --wordlist-size          small · medium · large (default: medium)
+  --masscan-rate N         Packets/sec (default: 5000)
+  --output DIR             Output directory (default: reports/)
+  --check-tools            Show installed tool status and exit
+  -y / --yes               Skip permission prompt (automation mode)
 ```
 
 ---
@@ -271,11 +332,14 @@ OTHER
 └── 📁 example.com/
     └── 📁 20240101_120000/
         │
-        ├── 📄 report.html          ← 🌐 Dark dashboard — open in browser
-        ├── 📄 report.json          ← 🤖 Full structured results
-        ├── 📄 report.md            ← 📝 Markdown summary
-        ├── 📄 scan.log             ← 📋 Full debug log
-        ├── 📄 scan_config.json     ← ⚙️  Exact scan settings used
+        ├── 📄 report.html            ← 🌐 Dark dashboard — open in browser
+        ├── 📄 report.json            ← 🤖 Full structured results
+        ├── 📄 report.md              ← 📝 Markdown summary
+        ├── 📄 scan.log               ← 📋 Full debug log
+        ├── 📄 scan_config.json       ← ⚙️  Exact scan settings used
+        │
+        ├── 📁 async_scan/  🆕
+        │   └── async_scan.txt        ← open ports · banners · timing
         │
         ├── 📁 subdomains/
         │   ├── subs_subfinder.txt
@@ -290,10 +354,8 @@ OTHER
         ├── 📁 httpx/
         ├── 📁 nuclei/
         ├── 📁 dirscan/
-        └── 📁 aquatone/            ← or gowitness/
+        └── 📁 aquatone/              ← or gowitness/
 ```
-
-The HTML report is a **self-contained dark dashboard** — stats bar, port table, web services, vuln findings sorted by severity, AI analysis section. No server needed. Just open it.
 
 ---
 
@@ -334,13 +396,28 @@ A working example ships with the project: `plugins/cve_banner_check.py` — matc
 
 <div align="center">
 
-## ╔══ v2.1 → v3.0 ══╗
+## ╔══ CHANGELOG ══╗
 
 </div>
 
 <br/>
 
 <div align="center">
+
+### v3.1.0
+
+| | Feature | Details |
+|:---:|:---|:---|
+| 🆕 | Built-in AsyncTCPScanner | asyncio TCP connect scan, equivalent to `nmap -sT` |
+| 🆕 | Banner grabbing | SSH, HTTP, FTP, Redis + more — instant service hints |
+| 🆕 | Surgical Nmap | Feeds only confirmed-open ports → massive speed boost |
+| 🆕 | `--async-concurrency` | Tune probe parallelism for your network |
+| 🆕 | `--async-timeout` | Per-connect timeout tuning for high-latency targets |
+| 🔧 | RustScan merged | Union of async + RustScan for maximum port coverage |
+| 🐛 | Masscan rate crash | Fixed `ValueError: int("y")` on bad input |
+| 🐛 | Full Suite nmap | No longer triggers confusing custom nmap builder |
+
+### v3.0.0 → v2.1
 
 | Feature | v2.1 | v3.0 |
 |:---|:---:|:---:|
@@ -354,10 +431,6 @@ A working example ships with the project: `plugins/cve_banner_check.py` — matc
 | AI threat analysis | ✗ | ✅ |
 | Plugin system | ✗ | ✅ |
 | CIDR / list input | ✗ | ✅ |
-| Web-only / Port-only profiles | ✗ | ✅ |
-| Per-scan log file | ✗ | ✅ scan.log |
-| Phase display | ✗ | ✅ named banners |
-| Web findings linked to hosts | ✗ | ✅ HostResult.web_urls |
 
 </div>
 
