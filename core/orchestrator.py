@@ -1,6 +1,6 @@
 """
-ReconNinja v3 — Core Orchestration Engine
-Drives the full recon pipeline: passive → port → web → vuln → report.
+ReconNinja v3.1 — Core Orchestration Engine
+Drives the full recon pipeline: passive → async TCP scan → nmap → web → vuln → report.
 """
 
 from __future__ import annotations
@@ -28,7 +28,10 @@ from utils.models import (
     NmapOptions, SEVERITY_PORTS,
 )
 from core.subdomains import subdomain_enum
-from core.ports import run_rustscan, run_nmap, run_masscan, nmap_worker, NMAP_PER_TARGET_TIMEOUT
+from core.ports import (
+    async_port_scan, run_rustscan, run_nmap, run_masscan,
+    nmap_worker, NMAP_PER_TARGET_TIMEOUT,
+)
 from core.web import run_httpx, run_whatweb, run_nikto, run_dir_scan, enrich_hosts_with_web
 from core.vuln import run_nuclei, run_aquatone, run_gowitness
 from output.reports import generate_json_report, generate_html_report, generate_markdown_report
@@ -133,19 +136,64 @@ def orchestrate(cfg: ScanConfig) -> ReconResult:
         result.subdomains = subdomain_enum(cfg.target, sub_dir, cfg.wordlist_size)
         result.phases_completed.append("passive_recon")
 
-    # ── Phase 2: Fast Port Discovery ──────────────────────────────────────
-    rustscan_ports: set[int] = set()
+    # ── Phase 2: Async TCP Connect Scan ──────────────────────────────────
+    # Pure-Python asyncio scanner — finds open ports without root/RustScan.
+    # Equivalent to nmap -sT: full 3-way TCP handshake per port.
+    # Results feed directly into Nmap so it only deep-scans confirmed open ports.
     nmap_opts = copy.deepcopy(cfg.nmap_opts)
+    discovered_ports: set[int] = set()
 
+    console.print(Panel.fit("[phase] PHASE 2 — Async TCP Connect Scan [/]"))
+    async_out = ensure_dir(out_folder / "async_scan")
+
+    # Determine port range for async scan based on nmap_opts
+    if nmap_opts.all_ports:
+        async_ports = None          # full 1-65535
+        async_top_n = None
+    else:
+        async_ports = None
+        async_top_n = nmap_opts.top_ports or 1000
+
+    async_port_infos, _ = async_port_scan(
+        target           = cfg.target,
+        ports            = async_ports,
+        top_n            = async_top_n,
+        concurrency      = cfg.async_concurrency,
+        connect_timeout  = cfg.async_timeout,
+        out_folder       = async_out,
+    )
+    discovered_ports = {p.port for p in async_port_infos}
+
+    if discovered_ports:
+        safe_print(f"[success]✔ Async scan found {len(discovered_ports)} open ports — "
+                   f"feeding into Nmap[/]")
+        port_str = ",".join(str(p) for p in sorted(discovered_ports))
+        # Override nmap to only scan confirmed-open ports (massive speedup)
+        nmap_opts.extra_flags = [f for f in nmap_opts.extra_flags
+                                  if not f.startswith("-p")]
+        nmap_opts.extra_flags.append(f"-p{port_str}")
+        nmap_opts.all_ports = False
+        nmap_opts.top_ports = 0
+    else:
+        safe_print("[dim]Async scan: no open ports detected — Nmap will use its own range[/]")
+    result.phases_completed.append("async_tcp_scan")
+
+    # ── Phase 2b: RustScan (optional — can supplement async results) ──────
+    rustscan_ports: set[int] = set()
     if cfg.run_rustscan:
-        console.print(Panel.fit("[phase] PHASE 2 — Fast Port Discovery [/]"))
+        console.print(Panel.fit("[phase] PHASE 2b — RustScan Sweep [/]"))
         rustscan_ports = run_rustscan(cfg.target, out_folder / "rustscan")
-        if rustscan_ports:
-            port_str = ",".join(str(p) for p in sorted(rustscan_ports))
+        # Merge with async results — union gives maximum coverage
+        all_fast_ports = discovered_ports | rustscan_ports
+        if all_fast_ports:
+            port_str = ",".join(str(p) for p in sorted(all_fast_ports))
+            nmap_opts.extra_flags = [f for f in nmap_opts.extra_flags
+                                      if not f.startswith("-p")]
             nmap_opts.extra_flags.append(f"-p{port_str}")
-            nmap_opts.all_ports  = False
-            nmap_opts.top_ports  = 0
-        result.phases_completed.append("fast_port_discovery")
+            nmap_opts.all_ports = False
+            nmap_opts.top_ports = 0
+            safe_print(f"[info]Merged: {len(all_fast_ports)} total unique ports → Nmap[/]")
+        result.phases_completed.append("rustscan")
 
     # ── Phase 3: Masscan ──────────────────────────────────────────────────
     if cfg.run_masscan:
