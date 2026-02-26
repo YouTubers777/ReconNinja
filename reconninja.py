@@ -29,6 +29,16 @@ Changelog v3.0 (from v2.1):
   + OPT: Subdomain DNS brute uses 100 concurrent threads
   + OPT: crt.sh fetched in Python (no external dep required)
   + FIX: All v2.1 fixes retained
+
+Changelog v3.1 (from v3.0):
+  + NEW: Built-in AsyncTCPScanner — asyncio TCP connect scan, no root required
+  + NEW: async scan runs BEFORE nmap, feeds confirmed open ports to nmap (-p<ports>)
+  + NEW: Banner grabbing on open ports for instant service hints
+  + NEW: --async-concurrency and --async-timeout CLI flags
+  + OPT: RustScan now merges with async results (union) for maximum coverage
+  + OPT: Nmap only scans confirmed-open ports — dramatically faster deep analysis
+  + FIX: masscan_rate crash on non-integer input (v3.0.1)
+  + FIX: FULL_SUITE no longer triggers custom nmap builder (v3.0.1)
 """
 
 from __future__ import annotations
@@ -55,7 +65,7 @@ from utils.models import ScanConfig, ScanProfile, NmapOptions
 from core.orchestrator import orchestrate, print_tool_status
 
 APP_NAME = "ReconNinja"
-VERSION  = "3.0.1"
+VERSION  = "3.1.0"
 
 
 
@@ -250,6 +260,10 @@ def parse_args() -> argparse.Namespace | None:
     # Other
     parser.add_argument("--wordlist-size", choices=["small","medium","large"], default="medium")
     parser.add_argument("--masscan-rate",  type=int, default=5000)
+    parser.add_argument("--async-concurrency", type=int, default=1000,
+                        help="Async TCP scanner concurrency (default: 1000)")
+    parser.add_argument("--async-timeout",    type=float, default=1.5,
+                        help="Async TCP connect timeout in seconds (default: 1.5)")
     parser.add_argument("--output",       default="reports", help="Output directory")
     parser.add_argument("--check-tools",  action="store_true")
     parser.add_argument("--yes", "-y",    action="store_true",
@@ -304,9 +318,11 @@ def build_config_from_args(args: argparse.Namespace) -> ScanConfig | None:
         run_aquatone    = args.aquatone,
         run_ai_analysis = args.ai         or is_full,
         threads         = args.threads,
-        wordlist_size   = args.wordlist_size,
-        masscan_rate    = args.masscan_rate,
-        output_dir      = args.output,
+        wordlist_size      = args.wordlist_size,
+        masscan_rate       = args.masscan_rate,
+        output_dir         = args.output,
+        async_concurrency  = args.async_concurrency,
+        async_timeout      = args.async_timeout,
     )
 
 
