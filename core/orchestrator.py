@@ -136,118 +136,112 @@ def orchestrate(cfg: ScanConfig) -> ReconResult:
         result.subdomains = subdomain_enum(cfg.target, sub_dir, cfg.wordlist_size)
         result.phases_completed.append("passive_recon")
 
-    # ── Phase 2: Async TCP Connect Scan ──────────────────────────────────
-    # Pure-Python asyncio scanner — finds open ports without root/RustScan.
-    # Equivalent to nmap -sT: full 3-way TCP handshake per port.
-    # Results feed directly into Nmap so it only deep-scans confirmed open ports.
-    nmap_opts = copy.deepcopy(cfg.nmap_opts)
-    discovered_ports: set[int] = set()
+    # ─────────────────────────────────────────────────────────────────────
+    # PORT DISCOVERY & SERVICE ANALYSIS (v3.2):
+    #
+    #   Phase 2  : RustScan  — PRIMARY port scanner, all 65535 ports
+    #   Phase 2b : Async TCP — fallback/gap-filler (pure Python, no root)
+    #   Phase 3  : Masscan   — optional extra sweep, merged into port set
+    #   Phase 4  : Nmap      — SERVICE ANALYSIS ONLY on confirmed-open ports
+    #                          nmap -sT -Pn -sV -sC -p<port_list>
+    #                          NEVER sweeps — only fingerprints known-open ports
+    # ─────────────────────────────────────────────────────────────────────
+    nmap_opts      = copy.deepcopy(cfg.nmap_opts)
+    all_open_ports: set[int] = set()
 
-    console.print(Panel.fit("[phase] PHASE 2 — Async TCP Connect Scan [/]"))
+    # ── Phase 2: RustScan — primary port discovery ─────────────────────
+    console.print(Panel.fit("[phase] PHASE 2 — RustScan Port Discovery [/]"))
+    rustscan_ports = run_rustscan(cfg.target, out_folder / "rustscan")
+    all_open_ports |= rustscan_ports
+    result.phases_completed.append("rustscan")
+
+    # ── Phase 2b: Async TCP — fallback / gap-filler ────────────────────
+    if not rustscan_ports:
+        console.print(Panel.fit("[phase] PHASE 2b — Async TCP Scan (RustScan fallback) [/]"))
+    else:
+        console.print(Panel.fit("[phase] PHASE 2b — Async TCP Scan (gap-fill) [/]"))
+
     async_out = ensure_dir(out_folder / "async_scan")
-
-    # Determine port range for async scan based on nmap_opts
-    if nmap_opts.all_ports:
-        async_ports = None          # full 1-65535
-        async_top_n = None
-    else:
-        async_ports = None
-        async_top_n = nmap_opts.top_ports or 1000
-
+    async_top_n = None if nmap_opts.all_ports else (nmap_opts.top_ports or 1000)
     async_port_infos, _ = async_port_scan(
-        target           = cfg.target,
-        ports            = async_ports,
-        top_n            = async_top_n,
-        concurrency      = cfg.async_concurrency,
-        connect_timeout  = cfg.async_timeout,
-        out_folder       = async_out,
+        target          = cfg.target,
+        top_n           = async_top_n,
+        concurrency     = cfg.async_concurrency,
+        connect_timeout = cfg.async_timeout,
+        out_folder      = async_out,
     )
-    discovered_ports = {p.port for p in async_port_infos}
-
-    if discovered_ports:
-        safe_print(f"[success]✔ Async scan found {len(discovered_ports)} open ports — "
-                   f"feeding into Nmap[/]")
-        port_str = ",".join(str(p) for p in sorted(discovered_ports))
-        # Override nmap to only scan confirmed-open ports (massive speedup)
-        nmap_opts.extra_flags = [f for f in nmap_opts.extra_flags
-                                  if not f.startswith("-p")]
-        nmap_opts.extra_flags.append(f"-p{port_str}")
-        nmap_opts.all_ports = False
-        nmap_opts.top_ports = 0
-    else:
-        safe_print("[dim]Async scan: no open ports detected — Nmap will use its own range[/]")
+    async_ports = {p.port for p in async_port_infos}
+    new_from_async = async_ports - all_open_ports
+    if new_from_async:
+        safe_print(f"[info]Async scan found {len(new_from_async)} extra port(s): "
+                   f"{', '.join(str(p) for p in sorted(new_from_async))}[/]")
+    all_open_ports |= async_ports
     result.phases_completed.append("async_tcp_scan")
 
-    # ── Phase 2b: RustScan (optional — can supplement async results) ──────
-    rustscan_ports: set[int] = set()
-    if cfg.run_rustscan:
-        console.print(Panel.fit("[phase] PHASE 2b — RustScan Sweep [/]"))
-        rustscan_ports = run_rustscan(cfg.target, out_folder / "rustscan")
-        # Merge with async results — union gives maximum coverage
-        all_fast_ports = discovered_ports | rustscan_ports
-        if all_fast_ports:
-            port_str = ",".join(str(p) for p in sorted(all_fast_ports))
-            nmap_opts.extra_flags = [f for f in nmap_opts.extra_flags
-                                      if not f.startswith("-p")]
-            nmap_opts.extra_flags.append(f"-p{port_str}")
-            nmap_opts.all_ports = False
-            nmap_opts.top_ports = 0
-            safe_print(f"[info]Merged: {len(all_fast_ports)} total unique ports → Nmap[/]")
-        result.phases_completed.append("rustscan")
-
-    # ── Phase 3: Masscan ──────────────────────────────────────────────────
+    # ── Phase 3: Masscan — optional extra sweep ────────────────────────
     if cfg.run_masscan:
         console.print(Panel.fit("[phase] PHASE 3 — Masscan Sweep [/]"))
         _, masscan_ports = run_masscan(cfg.target, out_folder / "masscan", cfg.masscan_rate)
         if masscan_ports:
             result.masscan_ports = sorted(masscan_ports)
-            if not rustscan_ports:
-                port_str = ",".join(str(p) for p in sorted(masscan_ports))
-                nmap_opts.extra_flags.append(f"-p{port_str}")
-                nmap_opts.all_ports = False
-                nmap_opts.top_ports = 0
+            new_from_masscan = masscan_ports - all_open_ports
+            if new_from_masscan:
+                safe_print(f"[info]Masscan added {len(new_from_masscan)} extra port(s)[/]")
+            all_open_ports |= masscan_ports
         result.phases_completed.append("masscan")
 
-    # ── Phase 4: Deep Service Analysis (Nmap) ─────────────────────────────
-    console.print(Panel.fit("[phase] PHASE 4 — Deep Service Analysis (Nmap) [/]"))
+    if all_open_ports:
+        safe_print(
+            f"[success]✔ Confirmed open ports ({len(all_open_ports)}): "
+            f"{', '.join(str(p) for p in sorted(all_open_ports))}[/]"
+        )
+    else:
+        safe_print("[warning]No open ports found — skipping Nmap service analysis[/]")
+
+    # ── Phase 4: Nmap service analysis — confirmed ports only ──────────
+    console.print(Panel.fit("[phase] PHASE 4 — Nmap Service Analysis [/]"))
     targets_to_scan = result.subdomains if result.subdomains else [cfg.target]
-    console.print(
-        f"[dim]Scanning {len(targets_to_scan)} target(s) | "
-        f"timeout {NMAP_PER_TARGET_TIMEOUT}s each | "
-        f"{min(cfg.threads, len(targets_to_scan))} parallel workers[/]"
-    )
-
     all_hosts: list[HostResult] = []
-    workers = min(cfg.threads, len(targets_to_scan))
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(), MofNCompleteColumn(), TimeElapsedColumn(),
-        console=console,
-    ) as progress:
-        task = progress.add_task("Nmap scans...", total=len(targets_to_scan))
-        with ThreadPoolExecutor(max_workers=workers) as ex:
-            nmap_out = ensure_dir(out_folder / "nmap")
-            futures: dict[Future, str] = {
-                ex.submit(nmap_worker, t, nmap_opts, nmap_out): t
-                for t in targets_to_scan
-            }
-            for fut in as_completed(futures):
-                sd = futures[fut]
-                try:
-                    _, hosts, errs = fut.result()
-                    with _RESULT_LOCK:
-                        all_hosts.extend(hosts)
-                        result.errors.extend(errs)
-                    open_c = sum(len(h.open_ports) for h in hosts)
-                    safe_print(f"[success]  ✔ {sd} — {open_c} open port(s)[/]")
-                except Exception as e:
-                    err_msg = f"{sd}: {e}"
-                    with _RESULT_LOCK:
-                        result.errors.append(err_msg)
-                    safe_print(f"[warning]  ✘ {err_msg}[/]")
-                progress.advance(task)
+    if not all_open_ports:
+        safe_print("[dim]No ports to analyse — skipping[/]")
+    else:
+        console.print(
+            f"[dim]{len(targets_to_scan)} target(s) | "
+            f"ports: {','.join(str(p) for p in sorted(all_open_ports))} | "
+            f"{min(cfg.threads, len(targets_to_scan))} workers[/]"
+        )
+        workers = min(cfg.threads, len(targets_to_scan))
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(), MofNCompleteColumn(), TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Nmap service scans...", total=len(targets_to_scan))
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                nmap_out = ensure_dir(out_folder / "nmap")
+                futures: dict[Future, str] = {
+                    ex.submit(
+                        nmap_worker, t, all_open_ports, nmap_out,
+                        nmap_opts.scripts, nmap_opts.version_detection, nmap_opts.timing,
+                    ): t
+                    for t in targets_to_scan
+                }
+                for fut in as_completed(futures):
+                    sd = futures[fut]
+                    try:
+                        _, hosts, errs = fut.result()
+                        with _RESULT_LOCK:
+                            all_hosts.extend(hosts)
+                            result.errors.extend(errs)
+                        svc_c = sum(len(h.ports) for h in hosts)
+                        safe_print(f"[success]  ✔ {sd} — {svc_c} service(s) identified[/]")
+                    except Exception as e:
+                        with _RESULT_LOCK:
+                            result.errors.append(f"{sd}: {e}")
+                        safe_print(f"[warning]  ✘ {sd}: {e}[/]")
+                    progress.advance(task)
 
     result.hosts = all_hosts
     result.phases_completed.append("nmap")
