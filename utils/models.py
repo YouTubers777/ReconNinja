@@ -72,10 +72,16 @@ class NmapOptions:
     def as_nmap_args(self) -> list[str]:
         args: list[str] = []
         if self.stealth:
+            # SYN scan — requires root. User explicitly chose stealth.
             args += ["-sS"]
-        if self.aggressive:
+        elif self.aggressive:
+            # -A implies -sV -sC -O — also needs root for -O but user asked for it
             args += ["-A"]
         else:
+            # Explicit TCP connect scan (-sT) — works without root.
+            # nmap defaults to -sS (raw sockets) when run as root, -sT otherwise,
+            # but being explicit prevents surprises and ensures consistency.
+            args += ["-sT"]
             if self.os_detection:
                 args += ["-O"]
             if self.scripts:
