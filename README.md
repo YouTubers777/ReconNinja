@@ -64,23 +64,23 @@ TARGET INPUT
     │
     ▼
 ╔═══════════════════════════════════════════════════════════════════════╗
-║              THE 14-PHASE RECON PIPELINE                             ║
+║              THE 14-PHASE RECON PIPELINE                              ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║                                                                       ║
-║   PHASE 01  ░  Passive Recon         subfinder · amass · crt.sh      ║
-║   PHASE 02  ░  Async TCP Scan  🆕    asyncio · banner grab · no root ║
-║   PHASE 02b ░  RustScan               merges with async results      ║
-║   PHASE 03  ░  Masscan Sweep          65535 ports at wire speed      ║
+║   PHASE 01  ░  Passive Recon         subfinder · amass · crt.sh       ║
+║   PHASE 02  ░  Async TCP Scan  🆕    asyncio · banner grab · no root  ║
+║   PHASE 02 ░  RustScan               merges with async results        ║
+║   PHASE 03  ░  Masscan Sweep          65535 ports at wire speed       ║
 ║   PHASE 04  ░  Deep Nmap              surgical · confirmed ports only ║
-║   PHASE 05  ░  Live Web Detection     httpx · status · tech stack    ║
-║   PHASE 06  ░  Dir Brute Force        feroxbuster → ffuf → dirsearch ║
-║   PHASE 07  ░  Tech Fingerprint       WhatWeb + httpx combined       ║
-║   PHASE 08  ░  Nikto Web Scan         Headers · misconfigs · CVEs    ║
-║   PHASE 09  ░  Nuclei Templates       medium · high · critical       ║
-║   PHASE 10  ░  Screenshots            Aquatone → gowitness fallback  ║
-║   PHASE 11  ░  AI Threat Analysis     No API key required            ║
-║   PHASE 12  ░  Plugins                Auto-discovered from plugins/  ║
-║   PHASE 13  ░  Reports                JSON · HTML Dashboard · MD     ║
+║   PHASE 05  ░  Live Web Detection     httpx · status · tech stack     ║
+║   PHASE 06  ░  Dir Brute Force        feroxbuster → ffuf → dirsearch  ║
+║   PHASE 07  ░  Tech Fingerprint       WhatWeb + httpx combined        ║
+║   PHASE 08  ░  Nikto Web Scan         Headers · misconfigs · CVEs     ║
+║   PHASE 09  ░  Nuclei Templates       medium · high · critical        ║
+║   PHASE 10  ░  Screenshots            Aquatone → gowitness fallback   ║
+║   PHASE 11  ░  AI Threat Analysis     No API key required             ║
+║   PHASE 12  ░  Plugins                Auto-discovered from plugins/   ║
+║   PHASE 13  ░  Reports                JSON · HTML Dashboard · MD      ║
 ║                                                                       ║
 ╚═══════════════════════════════════════════════════════════════════════╝
     │
