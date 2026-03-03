@@ -154,11 +154,11 @@ For each port (up to 1000 concurrent via asyncio.Semaphore):
 git clone https://github.com/YouTubers777/ReconNinja.git
 cd ReconNinja
 
-# Install the ONLY required dependency
-pip install rich
+# chmod the install.sh file
+chmod +x install.sh
 
-# Check what's installed
-python reconninja.py --check-tools
+# run the install.sh to install
+./install.sh
 ```
 
 > `rich` is the **only hard requirement**. The async TCP scanner is pure Python — zero external tools needed to start scanning.
