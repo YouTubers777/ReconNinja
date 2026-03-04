@@ -1,16 +1,10 @@
 """
 ReconNinja v3.2.1 — Data Models
-All shared dataclasses and enums.
 """
-
 from __future__ import annotations
-
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from typing import Optional
-
-
-# ─── Enums ────────────────────────────────────────────────────────────────────
 
 class ScanProfile(Enum):
     FAST       = "fast"
@@ -21,7 +15,6 @@ class ScanProfile(Enum):
     FULL_SUITE = "full_suite"
     WEB_ONLY   = "web_only"
     PORT_ONLY  = "port_only"
-
 
 class Phase(Enum):
     PASSIVE     = "passive"
@@ -34,40 +27,32 @@ class Phase(Enum):
     SCREENSHOT  = "screenshot"
     REPORT      = "report"
 
-
-# ─── Severity / Risk ──────────────────────────────────────────────────────────
-
 SEVERITY_PORTS: dict[str, set[int]] = {
     "critical": {21, 22, 23, 25, 53, 111, 135, 139, 143, 161, 389, 445, 512, 513, 514},
     "high":     {80, 443, 3306, 3389, 5432, 5900, 6379, 8080, 8443, 27017},
     "medium":   {8000, 8081, 8888, 9200, 9300, 11211},
 }
-
 WEB_PORTS = {80, 443, 8000, 8080, 8081, 8443, 8888, 3000, 5000, 9000}
-
 VALID_TIMINGS = {"T1", "T2", "T3", "T4", "T5"}
-
-
-# ─── Nmap Options ─────────────────────────────────────────────────────────────
 
 @dataclass
 class NmapOptions:
-    all_ports:         bool         = False
-    top_ports:         int          = 1000
-    scripts:           bool         = True
-    version_detection: bool         = True
-    os_detection:      bool         = False
-    aggressive:        bool         = False
-    stealth:           bool         = False
-    timing:            str          = "T4"
-    extra_flags:       list[str]    = field(default_factory=list)
-    script_args:       Optional[str]= None
+    all_ports:         bool          = False
+    top_ports:         int           = 1000
+    scripts:           bool          = True
+    version_detection: bool          = True
+    os_detection:      bool          = False
+    aggressive:        bool          = False
+    stealth:           bool          = False
+    timing:            str           = "T4"
+    extra_flags:       list[str]     = field(default_factory=list)
+    script_args:       Optional[str] = None
 
-    def __post_init__(self) -> None:
+    def __post_init__(self):
         if self.timing not in VALID_TIMINGS:
-            raise ValueError(f"Invalid timing '{self.timing}'. Must be one of {VALID_TIMINGS}")
+            raise ValueError(f"Invalid timing '{self.timing}'.")
         if not self.all_ports and self.top_ports < 0:
-            raise ValueError(f"top_ports must be >= 0, got {self.top_ports}")
+            raise ValueError(f"top_ports must be >= 0")
 
     def as_nmap_args(self) -> list[str]:
         args: list[str] = []
@@ -77,12 +62,9 @@ class NmapOptions:
             args += ["-A"]
         else:
             args += ["-sT"]
-            if self.os_detection:
-                args += ["-O"]
-            if self.scripts:
-                args += ["-sC"]
-            if self.version_detection:
-                args += ["-sV"]
+            if self.os_detection:      args += ["-O"]
+            if self.scripts:           args += ["-sC"]
+            if self.version_detection: args += ["-sV"]
         if self.script_args:
             args += [f"--script-args={self.script_args}"]
         args += [f"-{self.timing}"]
@@ -93,16 +75,11 @@ class NmapOptions:
         args += self.extra_flags
         return args
 
-
-# ─── Scan Config ──────────────────────────────────────────────────────────────
-
 @dataclass
 class ScanConfig:
     target:           str
-    profile:          ScanProfile   = ScanProfile.STANDARD
-    nmap_opts:        NmapOptions   = field(default_factory=NmapOptions)
-
-    # Feature toggles
+    profile:          ScanProfile  = ScanProfile.STANDARD
+    nmap_opts:        NmapOptions  = field(default_factory=NmapOptions)
     run_subdomains:   bool = False
     run_rustscan:     bool = False
     run_feroxbuster:  bool = False
@@ -113,17 +90,11 @@ class ScanConfig:
     run_nuclei:       bool = False
     run_httpx:        bool = False
     run_ai_analysis:  bool = False
-    run_cve_lookup:   bool = False   # FIX v3.2.1: was missing, --cve flag now wired
-
-    # AI provider config — FIX v3.2.1: these were missing from ScanConfig
-    ai_provider:      str  = "groq"
-    ai_key:           str  = ""
-    ai_model:         str  = ""
-
-    # CVE lookup config — FIX v3.2.1: nvd_key was in README but never stored
-    nvd_key:          str  = ""
-
-    # Tuning
+    run_cve_lookup:   bool = False   # FIX v3.2.1
+    ai_provider:      str  = "groq"  # FIX v3.2.1
+    ai_key:           str  = ""      # FIX v3.2.1
+    ai_model:         str  = ""      # FIX v3.2.1
+    nvd_key:          str  = ""      # FIX v3.2.1
     masscan_rate:       int   = 5000
     threads:            int   = 20
     wordlist_size:      str   = "medium"
@@ -135,9 +106,6 @@ class ScanConfig:
         d = asdict(self)
         d["profile"] = self.profile.value
         return d
-
-
-# ─── Result primitives ────────────────────────────────────────────────────────
 
 @dataclass
 class PortInfo:
@@ -163,13 +131,8 @@ class PortInfo:
 
     @property
     def display_state(self) -> str:
-        colors = {
-            "open":     "port.open",
-            "filtered": "port.filtered",
-            "closed":   "port.closed",
-        }
-        return f"[{colors.get(self.state, 'dim')}]{self.state}[/]"
-
+        colors = {"open":"port.open","filtered":"port.filtered","closed":"port.closed"}
+        return f"[{colors.get(self.state,'dim')}]{self.state}[/]"
 
 @dataclass
 class HostResult:
@@ -184,47 +147,44 @@ class HostResult:
     web_urls:         list[str] = field(default_factory=list)
 
     @property
-    def open_ports(self) -> list[PortInfo]:
+    def open_ports(self):
         return [p for p in self.ports if p.state == "open"]
 
     @property
-    def web_ports(self) -> list[PortInfo]:
+    def web_ports(self):
         return [p for p in self.open_ports if p.is_web]
-
 
 @dataclass
 class WebFinding:
-    url:           str
-    status_code:   int  = 0
-    title:         str  = ""
-    technologies:  list[str] = field(default_factory=list)
-    server:        str  = ""
-    content_length: int = 0
-
+    url:            str
+    status_code:    int       = 0
+    title:          str       = ""
+    technologies:   list[str] = field(default_factory=list)
+    server:         str       = ""
+    content_length: int       = 0
 
 @dataclass
 class VulnFinding:
-    tool:       str
-    severity:   str
-    title:      str
-    target:     str
-    details:    str = ""
-    cve:        str = ""
-
+    tool:     str
+    severity: str
+    title:    str
+    target:   str
+    details:  str = ""
+    cve:      str = ""
 
 @dataclass
 class ReconResult:
-    target:              str
-    start_time:          str
-    end_time:            str            = ""
-    subdomains:          list[str]      = field(default_factory=list)
-    hosts:               list[HostResult] = field(default_factory=list)
-    web_findings:        list[WebFinding] = field(default_factory=list)
-    dir_findings:        list[str]      = field(default_factory=list)
-    nikto_findings:      list[str]      = field(default_factory=list)
-    whatweb_findings:    list[str]      = field(default_factory=list)
-    nuclei_findings:     list[VulnFinding] = field(default_factory=list)
-    masscan_ports:       list[int]      = field(default_factory=list)
-    ai_analysis:         str            = ""
-    errors:              list[str]      = field(default_factory=list)
-    phases_completed:    list[str]      = field(default_factory=list)
+    target:           str
+    start_time:       str
+    end_time:         str            = ""
+    subdomains:       list[str]      = field(default_factory=list)
+    hosts:            list[HostResult]  = field(default_factory=list)
+    web_findings:     list[WebFinding]  = field(default_factory=list)
+    dir_findings:     list[str]      = field(default_factory=list)
+    nikto_findings:   list[str]      = field(default_factory=list)
+    whatweb_findings: list[str]      = field(default_factory=list)
+    nuclei_findings:  list[VulnFinding] = field(default_factory=list)
+    masscan_ports:    list[int]      = field(default_factory=list)
+    ai_analysis:      str            = ""
+    errors:           list[str]      = field(default_factory=list)
+    phases_completed: list[str]      = field(default_factory=list)

@@ -293,11 +293,14 @@ def orchestrate(
     if cfg.run_cve_lookup and "cve_lookup" not in completed:
         console.print(Panel.fit("[phase] PHASE 4b — CVE Lookup (NVD) [/]"))
         try:
-            from core.cve_lookup import lookup_cves_for_hosts
-            cve_findings = lookup_cves_for_hosts(
-                result.hosts,
-                api_key=cfg.nvd_key or None,
-            )
+            from core.cve_lookup import lookup_cves_for_host_result
+            cve_findings = []
+            for host in result.hosts:
+                cve_findings += lookup_cves_for_host_result(
+                    host,
+                    target=result.target,
+                    api_key=cfg.nvd_key or None,
+                )
             result.nuclei_findings.extend(cve_findings)
             safe_print(f"[success]✔ CVE lookup complete — {len(cve_findings)} finding(s)[/]")
         except Exception as e:

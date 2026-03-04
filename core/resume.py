@@ -150,6 +150,11 @@ def _dict_to_config(d: dict) -> ScanConfig:
         run_nuclei        = d.get("run_nuclei", False),
         run_httpx         = d.get("run_httpx", False),
         run_ai_analysis   = d.get("run_ai_analysis", False),
+        run_cve_lookup    = d.get("run_cve_lookup", False),   # FIX v3.2.1
+        ai_provider       = d.get("ai_provider", "groq"),     # FIX v3.2.1
+        ai_key            = d.get("ai_key", ""),               # FIX v3.2.1
+        ai_model          = d.get("ai_model", ""),             # FIX v3.2.1
+        nvd_key           = d.get("nvd_key", ""),              # FIX v3.2.1
         masscan_rate      = d.get("masscan_rate", 5000),
         threads           = d.get("threads", 20),
         wordlist_size     = d.get("wordlist_size", "medium"),
