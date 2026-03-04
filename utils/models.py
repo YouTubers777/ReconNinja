@@ -1,5 +1,5 @@
 """
-ReconNinja v3 — Data Models
+ReconNinja v3.2.1 — Data Models
 All shared dataclasses and enums.
 """
 
@@ -72,15 +72,10 @@ class NmapOptions:
     def as_nmap_args(self) -> list[str]:
         args: list[str] = []
         if self.stealth:
-            # SYN scan — requires root. User explicitly chose stealth.
             args += ["-sS"]
         elif self.aggressive:
-            # -A implies -sV -sC -O — also needs root for -O but user asked for it
             args += ["-A"]
         else:
-            # Explicit TCP connect scan (-sT) — works without root.
-            # nmap defaults to -sS (raw sockets) when run as root, -sT otherwise,
-            # but being explicit prevents surprises and ensures consistency.
             args += ["-sT"]
             if self.os_detection:
                 args += ["-O"]
@@ -118,14 +113,23 @@ class ScanConfig:
     run_nuclei:       bool = False
     run_httpx:        bool = False
     run_ai_analysis:  bool = False
+    run_cve_lookup:   bool = False   # FIX v3.2.1: was missing, --cve flag now wired
+
+    # AI provider config — FIX v3.2.1: these were missing from ScanConfig
+    ai_provider:      str  = "groq"
+    ai_key:           str  = ""
+    ai_model:         str  = ""
+
+    # CVE lookup config — FIX v3.2.1: nvd_key was in README but never stored
+    nvd_key:          str  = ""
 
     # Tuning
-    masscan_rate:       int  = 5000
-    threads:            int  = 20
-    wordlist_size:      str  = "medium"
-    output_dir:         str  = "reports"
-    async_concurrency:  int  = 1000   # asyncio coroutines for TCP connect scan
-    async_timeout:      float = 1.5  # seconds per TCP connect attempt
+    masscan_rate:       int   = 5000
+    threads:            int   = 20
+    wordlist_size:      str   = "medium"
+    output_dir:         str   = "reports"
+    async_concurrency:  int   = 1000
+    async_timeout:      float = 1.5
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -177,7 +181,7 @@ class HostResult:
     ports:            list[PortInfo] = field(default_factory=list)
     scan_time:        str       = ""
     source_subdomain: str       = ""
-    web_urls:         list[str] = field(default_factory=list)  # httpx discoveries
+    web_urls:         list[str] = field(default_factory=list)
 
     @property
     def open_ports(self) -> list[PortInfo]:
