@@ -1,8 +1,8 @@
 """
-tests/test_models.py — ReconNinja v3.2.1
+tests/test_models.py — ReconNinja v3.3.0
 Exhaustive tests for utils/models.py
 
-v3.2.1 additions:
+v3.3.0 additions:
   - TestScanConfigDefaults: run_cve_lookup, ai_provider, ai_key, ai_model, nvd_key
   - TestScanConfigCustom:   new AI/CVE fields construction & to_dict round-trip
   - TestScanConfigToDict:   new fields present in serialized dict
@@ -156,7 +156,7 @@ class TestScanConfigDefaults:
     def test_run_nuclei_false(self):      assert self.c.run_nuclei         is False
     def test_run_httpx_false(self):       assert self.c.run_httpx          is False
     def test_run_ai_analysis_false(self): assert self.c.run_ai_analysis    is False
-    # ── v3.2.1 new fields ────────────────────────────────────────────────────
+    # ── v3.3.0 new fields ────────────────────────────────────────────────────
     def test_run_cve_lookup_false(self):  assert self.c.run_cve_lookup     is False
     def test_ai_provider_groq(self):      assert self.c.ai_provider        == "groq"
     def test_ai_key_empty(self):          assert self.c.ai_key             == ""
@@ -185,7 +185,7 @@ class TestScanConfigToDict:
         d = ScanConfig(target="x").to_dict()
         for k in ["run_subdomains","run_rustscan","run_nuclei","run_ai_analysis"]:
             assert k in d
-    # ── v3.2.1: new fields present in to_dict() output ───────────────────────
+    # ── v3.3.0: new fields present in to_dict() output ───────────────────────
     def test_run_cve_lookup_in_dict(self):
         assert "run_cve_lookup" in ScanConfig(target="x").to_dict()
     def test_ai_provider_in_dict(self):
@@ -213,7 +213,7 @@ class TestScanConfigCustom:
         assert c.run_rustscan    is True
         assert c.run_nuclei      is True
         assert c.run_ai_analysis is True
-    # ── v3.2.1: new field construction ───────────────────────────────────────
+    # ── v3.3.0: new field construction ───────────────────────────────────────
     def test_run_cve_lookup_enabled(self):
         assert ScanConfig(target="x", run_cve_lookup=True).run_cve_lookup is True
     def test_ai_provider_set(self):

@@ -1,13 +1,13 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d0d0d,50:00d4ff,100:7c3aed&height=200&section=header&text=ReconNinja&fontSize=80&fontColor=ffffff&fontAlignY=38&desc=v3.2.2%20%E2%80%94%20Elite%20Recon%20Framework&descSize=20&descAlignY=60&descColor=00d4ff&animation=fadeIn" />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d0d0d,50:00d4ff,100:7c3aed&height=200&section=header&text=ReconNinja&fontSize=80&fontColor=ffffff&fontAlignY=38&desc=v3.3.0%20%E2%80%94%20Elite%20Recon%20Framework&descSize=20&descAlignY=60&descColor=00d4ff&animation=fadeIn" />
 
 [![Python](https://img.shields.io/badge/Python-3.10+-FFD43B?style=for-the-badge&logo=python&logoColor=black)](https://python.org)
-[![Version](https://img.shields.io/badge/Version-3.2.2-00d4ff?style=for-the-badge&logo=buffer&logoColor=white)](https://github.com/YouTubers777/ReconNinja/releases)
+[![Version](https://img.shields.io/badge/Version-3.3.0-00d4ff?style=for-the-badge&logo=buffer&logoColor=white)](https://github.com/ExploitCraft/ReconNinja/releases)
 [![Tests](https://img.shields.io/badge/Tests-262%20passing-22c55e?style=for-the-badge&logo=checkmarx&logoColor=white)](tests/)
 [![License](https://img.shields.io/badge/License-MIT-7c3aed?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/YouTubers777/ReconNinja?style=for-the-badge&logo=github&color=ff6b6b&logoColor=white)](https://github.com/YouTubers777/ReconNinja/stargazers)
-[![CI](https://img.shields.io/github/actions/workflow/status/YouTubers777/ReconNinja/python-package-conda.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/YouTubers777/ReconNinja/actions)
+[![Stars](https://img.shields.io/github/stars/ExploitCraft/ReconNinja?style=for-the-badge&logo=github&color=ff6b6b&logoColor=white)](https://github.com/ExploitCraft/ReconNinja/stargazers)
+[![CI](https://img.shields.io/github/actions/workflow/status/ExploitCraft/ReconNinja/python-package-conda.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/ExploitCraft/ReconNinja/actions)
 
 <br/>
 
@@ -29,8 +29,8 @@ Unauthorized use is illegal. The author is not responsible for misuse.
 
 ## 📋 Table of Contents
 
-- [What's New in v3.2.2](#-whats-new-in-v322)
-- [What's New in v3.2.1](#-whats-new-in-v321)
+- [What's New in v3.3.0](#-whats-new-in-v330)
+- [What's New in v3.3.0](#-whats-new-in-v322)
 - [Features](#-features)
 - [Pipeline](#-pipeline)
 - [Requirements](#-requirements)
@@ -50,6 +50,20 @@ Unauthorized use is illegal. The author is not responsible for misuse.
 
 ---
 
+## 🆕 What's New in v3.3.0
+
+> Feature fix release — resume phase-skip logic implemented, username migrated to ExploitCraft.
+
+| # | File | Fix | Impact |
+|---|---|---|---|
+| 1 | `core/orchestrator.py` | All phases check `phases_completed` before running | `--resume` re-ran every phase from scratch — data was overwritten, not restored |
+| 2 | `core/orchestrator.py` | Phase 2 wrapped in `if cfg.run_rustscan` | RustScan fired unconditionally on every profile including `web_only` |
+| 3 | `core/orchestrator.py` | Masscan re-hydrates `all_open_ports` on resume | Port set was empty after skip — Phase 4 had nothing to scan |
+| 4 | All files | `YouTubers777` → `ExploitCraft` | Username migrated across README, updater, install.sh, report footer, LICENSE |
+| 5 | `reconninja.py` | `VERSION` bumped to `3.3.0` | Banner accuracy |
+
+---
+
 ## 🆕 What's New in v3.2.2
 
 > Bug fix release. All v3.2.1 features are intact — these are correctness and completeness fixes only.
@@ -62,25 +76,12 @@ Unauthorized use is illegal. The author is not responsible for misuse.
 | 4 | `reconninja.py` | `--force-update` flag added to argparse | Same — docs lying |
 | 5 | `reconninja.py` | `run_update(VERSION)` → `run_update(force=...)` | String passed as bool — forced a re-download on every single `--update` call |
 | 6 | `reconninja.py` | `--nvd-key` wired into `ScanConfig` | Flag was accepted but silently discarded — NVD always ran at free-tier rate |
-| 7 | `reconninja.py` + `orchestrator.py` | `orchestrate()` gains `resume_result` + `resume_folder` params | `--resume` crashed with `TypeError` every time — identical bug to v3.2.0 |
+| 7 | `reconninja.py` + `orchestrator.py` | `orchestrate()` gains `resume_result` + `resume_folder` params | `--resume` crashed with `TypeError` every time |
 | 8 | `orchestrator.py` | CVE Phase 4b actually calls `lookup_cves_for_host_result()` | `--cve` flag was set in `ScanConfig` but orchestrator never executed the phase |
 | 9 | `orchestrator.py` | `save_state()` called after every phase | No checkpoints were ever written — `--resume` had nothing to load |
 | 10 | `orchestrator.py` | Phase 11 calls `run_ai_analysis()` from `core/ai_analysis.py` | `--ai` always used the local rule-based fallback, never the real LLM |
 | 11 | `updater.py` | `print_update_status()` wrapped in `try/except` | Any network error at startup crashed the whole tool |
 | 12 | `resume.py` | `_dict_to_config` uses `.get()` not `.pop()` | `pop()` mutated the caller's dict — double-loading state caused `KeyError` crash |
-
----
-
-## 🆕 What's New in v3.2.1
-
-| Fix | Description |
-|---|---|
-| 🤖 **AI Analysis wired** | `core/ai_analysis.py` module added with Groq/Ollama/Gemini/OpenAI support |
-| 🔑 **`--nvd-key` added to models** | `ScanConfig` gains `run_cve_lookup`, `ai_provider`, `ai_key`, `ai_model`, `nvd_key` fields |
-| 💾 **Resume field restoration** | `_dict_to_config()` restores all 5 new fields — old state files load cleanly with safe defaults |
-| ⏱️ **NVD rate limit fixed** | `delay` corrected from `0.7s` → `6.5s` (was firing 43 req/30s against a 5 req/30s limit) |
-| 🔍 **CVE function name fixed** | Orchestrator referenced `lookup_cves_for_hosts` (didn't exist) — corrected to `lookup_cves_for_host_result` |
-| 🏷️ **Version banner** | Internal docstring updated |
 
 ---
 
@@ -168,7 +169,7 @@ Target Input
 ├─────────────────────────────────────────────────────────────────┤
 │  Phase 4  │  Nmap — service analysis on confirmed open ports    │
 ├─────────────────────────────────────────────────────────────────┤
-│  Phase 4b │  CVE Lookup — NVD API for each service+version      │  ← fixed v3.2.2
+│  Phase 4b │  CVE Lookup — NVD API for each service+version      │  ← fixed v3.3.0
 ├─────────────────────────────────────────────────────────────────┤
 │  Phase 5  │  httpx — live web detection + tech stack            │
 ├─────────────────────────────────────────────────────────────────┤
@@ -182,14 +183,14 @@ Target Input
 ├─────────────────────────────────────────────────────────────────┤
 │  Phase 10 │  Screenshots (gowitness / aquatone)                  │
 ├─────────────────────────────────────────────────────────────────┤
-│  Phase 11 │  AI Threat Analysis (Groq / Ollama / Gemini)        │  ← fixed v3.2.2
+│  Phase 11 │  AI Threat Analysis (Groq / Ollama / Gemini)        │  ← fixed v3.3.0
 ├─────────────────────────────────────────────────────────────────┤
 │  Phase 12 │  Plugins                                            │
 ├─────────────────────────────────────────────────────────────────┤
 │  Phase 13 │  HTML + JSON + Markdown Report Generation           │
 └─────────────────────────────────────────────────────────────────┘
          ↑
-         state.json saved after EVERY phase  ← fixed v3.2.2
+         state.json saved after EVERY phase  ← fixed v3.3.0
 ```
 
 ---
@@ -226,7 +227,7 @@ rich>=13.0.0
 ### One-Line Install (Recommended)
 
 ```bash
-git clone https://github.com/YouTubers777/ReconNinja.git
+git clone https://github.com/ExploitCraft/ReconNinja.git
 cd ReconNinja
 chmod +x install.sh
 ./install.sh
@@ -246,7 +247,7 @@ ReconNinja
 ### Manual Install
 
 ```bash
-git clone https://github.com/YouTubers777/ReconNinja.git
+git clone https://github.com/ExploitCraft/ReconNinja.git
 cd ReconNinja
 pip install rich
 python3 reconninja.py --check-tools
@@ -505,8 +506,8 @@ python3 -m unittest discover tests/
 
 | File | Tests | Covers |
 |---|---|---|
-| `tests/test_models.py` | 105 | All dataclasses, `ScanConfig` including all v3.2.1 fields, constants |
-| `tests/test_resume.py` | 83 | `save_state`, `load_state`, all v3.2.1 field round-trips, backward-compat with old state files |
+| `tests/test_models.py` | 105 | All dataclasses, `ScanConfig` including all v3.3.0 fields, constants |
+| `tests/test_resume.py` | 83 | `save_state`, `load_state`, all v3.3.0 field round-trips, backward-compat with old state files |
 | `tests/test_cve_lookup.py` | 47 | `CVEResult`, NVD API parsing, rate limit enforcement (≥6.0s), function name regressions |
 | `tests/test_ai_analysis.py` | — | All 4 AI providers, prompt building, JSON parsing, error handling |
 | `tests/test_report_html.py` | — | HTML structure, badge generation, full/empty result rendering |
@@ -527,15 +528,15 @@ python3 -m unittest discover tests/
 These exist specifically to prevent fixed bugs from returning:
 
 ```python
-# test_cve_lookup.py — catches v3.2.0 rate limit bug (0.7s → 403 errors)
+# test_cve_lookup.py — catches v3.3.0 rate limit bug (0.7s → 403 errors)
 def test_default_delay_at_least_6_seconds(self):
     assert delay >= 6.0
 
-# test_cve_lookup.py — catches v3.2.0/v3.2.1 wrong function name in orchestrator
+# test_cve_lookup.py — catches v3.3.0/v3.3.0 wrong function name in orchestrator
 def test_wrong_function_name_does_not_exist(self):
     assert not hasattr(module, "lookup_cves_for_hosts")
 
-# test_resume.py — catches v3.2.0 field-drop on resume
+# test_resume.py — catches v3.3.0 field-drop on resume
 def test_missing_new_fields_get_defaults(self):
     cfg2 = _dict_to_config({"target": "old.com", "profile": "standard", "nmap_opts": {}})
     assert cfg2.run_cve_lookup is False
@@ -548,39 +549,39 @@ def test_missing_new_fields_get_defaults(self):
 
 ```
 ReconNinja/
-├── reconninja.py           # Main entry point + CLI                  ← updated v3.2.2
+├── reconninja.py           # Main entry point + CLI                  ← updated v3.3.0
 ├── install.sh              # Installer
 ├── requirements.txt        # Python dependencies
 ├── environment.yml         # Conda environment
 ├── pytest.ini              # Test config
 │
 ├── core/
-│   ├── orchestrator.py     # Phase-based pipeline engine             ← updated v3.2.2
+│   ├── orchestrator.py     # Phase-based pipeline engine             ← updated v3.3.0
 │   ├── ports.py            # RustScan + Async TCP + Nmap
 │   ├── subdomains.py       # Subdomain enumeration
 │   ├── web.py              # httpx, WhatWeb, Nikto, dir scan
 │   ├── vuln.py             # Nuclei, aquatone, gowitness
 │   ├── ai_analysis.py      # AI threat analysis — Groq/Ollama/Gemini/OpenAI
-│   ├── cve_lookup.py       # NVD CVE lookup                          ← updated v3.2.1
-│   ├── resume.py           # Checkpoint / resume                     ← updated v3.2.2
-│   └── updater.py          # Self-update from GitHub                 ← updated v3.2.2
+│   ├── cve_lookup.py       # NVD CVE lookup                          ← updated v3.3.0
+│   ├── resume.py           # Checkpoint / resume                     ← updated v3.3.0
+│   └── updater.py          # Self-update from GitHub                 ← updated v3.3.0
 │
 ├── output/
 │   ├── report_html.py      # HTML report generator
 │   └── reports.py          # JSON + Markdown reports
 │
 ├── utils/
-│   ├── models.py           # Dataclasses — ScanConfig, PortInfo etc. ← updated v3.2.1
+│   ├── models.py           # Dataclasses — ScanConfig, PortInfo etc. ← updated v3.3.0
 │   ├── helpers.py          # Utility functions
 │   └── logger.py           # Rich terminal logger
 │
 ├── plugins/                # Drop .py files here to extend ReconNinja
 │
 └── tests/
-    ├── conftest.py         # Shared fixtures                         ← updated v3.2.2
-    ├── test_models.py      # 105 tests                               ← updated v3.2.2
-    ├── test_resume.py      # 83 tests                                ← updated v3.2.2
-    ├── test_cve_lookup.py  # 47 tests                                ← updated v3.2.2
+    ├── conftest.py         # Shared fixtures                         ← updated v3.3.0
+    ├── test_models.py      # 105 tests                               ← updated v3.3.0
+    ├── test_resume.py      # 83 tests                                ← updated v3.3.0
+    ├── test_cve_lookup.py  # 47 tests                                ← updated v3.3.0
     ├── test_ai_analysis.py # AI provider tests
     ├── test_ports.py       # Port scanning tests
     └── test_report_html.py # HTML report tests
@@ -590,7 +591,7 @@ ReconNinja/
 
 ## 📝 Changelog
 
-### v3.2.2 — Bug Fix Release
+### v3.3.0 — Bug Fix Release
 - ✅ **12 bugs fixed** — see table at top of this section
 - ✅ `--cve`, `--update-branch`, `--force-update` flags added to argparse
 - ✅ `--nvd-key` fully wired from CLI → `ScanConfig` → CVE lookup
@@ -603,14 +604,14 @@ ReconNinja/
 - ✅ `_dict_to_config()` uses `.get()` not `.pop()` — no dict mutation on state load
 - ✅ **262 tests, 0 failures** — test suite updated for all 12 fixes
 
-### v3.2.1 — Bug Fix Release
+### v3.3.0 — Bug Fix Release
 - ✅ `core/ai_analysis.py` added — real LLM integration (Groq/Ollama/Gemini/OpenAI)
 - ✅ `ScanConfig` gains `run_cve_lookup`, `ai_provider`, `ai_key`, `ai_model`, `nvd_key`
 - ✅ `_dict_to_config()` restores all new fields — old state files load with safe defaults
 - ✅ NVD rate limit delay corrected from `0.7s` → `6.5s`
 - ✅ CVE function name corrected: `lookup_cves_for_host_result` (was `lookup_cves_for_hosts`)
 
-### v3.2.0
+### v3.3.0
 - ✅ `--ai` flag — Groq / Ollama / Gemini / OpenAI AI threat analysis
 - ✅ `--cve-lookup` — NVD CVE auto-query after nmap `-sV`
 - ✅ `--resume` — JSON checkpoint saves after phases
@@ -648,7 +649,7 @@ ReconNinja/
 
 <div align="center">
 
-**Made by [YouTubers777](https://github.com/YouTubers777)**
+**Made by [ExploitCraft](https://github.com/ExploitCraft)**
 
 ⭐ If this tool helped you, please give it a star!
 

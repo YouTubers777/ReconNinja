@@ -1,5 +1,5 @@
 """
-tests/test_ports.py — ReconNinja v3.2
+tests/test_ports.py — ReconNinja v3.3
 Pure helper function tests for core/ports.py (no network calls).
 """
 import pytest

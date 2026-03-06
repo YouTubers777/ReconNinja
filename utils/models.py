@@ -1,5 +1,5 @@
 """
-ReconNinja v3.2.1 — Data Models
+ReconNinja v3.3.0 — Data Models
 """
 from __future__ import annotations
 from dataclasses import dataclass, field, asdict
@@ -90,11 +90,11 @@ class ScanConfig:
     run_nuclei:       bool = False
     run_httpx:        bool = False
     run_ai_analysis:  bool = False
-    run_cve_lookup:   bool = False   # FIX v3.2.1
-    ai_provider:      str  = "groq"  # FIX v3.2.1
-    ai_key:           str  = ""      # FIX v3.2.1
-    ai_model:         str  = ""      # FIX v3.2.1
-    nvd_key:          str  = ""      # FIX v3.2.1
+    run_cve_lookup:   bool = False   # FIX v3.3.0
+    ai_provider:      str  = "groq"  # FIX v3.3.0
+    ai_key:           str  = ""      # FIX v3.3.0
+    ai_model:         str  = ""      # FIX v3.3.0
+    nvd_key:          str  = ""      # FIX v3.3.0
     masscan_rate:       int   = 5000
     threads:            int   = 20
     wordlist_size:      str   = "medium"

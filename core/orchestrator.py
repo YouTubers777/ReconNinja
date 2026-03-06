@@ -1,5 +1,5 @@
 """
-ReconNinja v3.1 — Core Orchestration Engine
+ReconNinja v3.3 — Core Orchestration Engine
 Drives the full recon pipeline: passive → async TCP scan → nmap → web → vuln → report.
 """
 
@@ -34,9 +34,9 @@ from core.ports import (
 )
 from core.web import run_httpx, run_whatweb, run_nikto, run_dir_scan, enrich_hosts_with_web
 from core.vuln import run_nuclei, run_aquatone, run_gowitness
-from core.cve_lookup import lookup_cves_for_host_result          # FIX v3.2.2
-from core.ai_analysis import run_ai_analysis                     # FIX v3.2.2
-from core.resume import save_state                               # FIX v3.2.2
+from core.cve_lookup import lookup_cves_for_host_result          # FIX v3.3.0
+from core.ai_analysis import run_ai_analysis                     # FIX v3.3.0
+from core.resume import save_state                               # FIX v3.3.0
 from output.reports import generate_json_report, generate_html_report, generate_markdown_report
 from plugins import discover_plugins, run_plugins
 
@@ -135,15 +135,17 @@ def orchestrate(cfg: ScanConfig,
     console.print(f"\n[success]📁 Output folder: {out_folder}[/]\n")
 
     # ── Phase 1: Passive Recon ─────────────────────────────────────────────
-    if cfg.run_subdomains:
+    if cfg.run_subdomains and "passive_recon" not in result.phases_completed:  # FIX v3.3.0: skip on resume
         console.print(Panel.fit("[phase] PHASE 1 — Passive Recon [/]"))
         sub_dir = out_folder / "subdomains"
         result.subdomains = subdomain_enum(cfg.target, sub_dir, cfg.wordlist_size)
         result.phases_completed.append("passive_recon")
-        save_state(result, cfg, out_folder)   # FIX v3.2.2: checkpoint after every phase
+        save_state(result, cfg, out_folder)
+    elif "passive_recon" in result.phases_completed:
+        safe_print("[dim]Phase 1 — Passive Recon: already completed, skipping[/]")
 
     # ─────────────────────────────────────────────────────────────────────
-    # PORT DISCOVERY & SERVICE ANALYSIS (v3.2):
+    # PORT DISCOVERY & SERVICE ANALYSIS (v3.3):
     #
     #   Phase 2  : RustScan  — PRIMARY port scanner, all 65535 ports
     #   Phase 2b : Async TCP — fallback/gap-filler (pure Python, no root)
@@ -156,11 +158,17 @@ def orchestrate(cfg: ScanConfig,
     all_open_ports: set[int] = set()
 
     # ── Phase 2: RustScan — primary port discovery ─────────────────────
-    console.print(Panel.fit("[phase] PHASE 2 — RustScan Port Discovery [/]"))
-    rustscan_ports = run_rustscan(cfg.target, out_folder / "rustscan")
-    all_open_ports |= rustscan_ports
-    result.phases_completed.append("rustscan")
-    save_state(result, cfg, out_folder)   # FIX v3.2.2
+    if cfg.run_rustscan and "rustscan" not in result.phases_completed:  # FIX v3.3.0: honour flag + skip on resume
+        console.print(Panel.fit("[phase] PHASE 2 — RustScan Port Discovery [/]"))
+        rustscan_ports = run_rustscan(cfg.target, out_folder / "rustscan")
+        all_open_ports |= rustscan_ports
+        result.phases_completed.append("rustscan")
+        save_state(result, cfg, out_folder)
+    elif "rustscan" in result.phases_completed:
+        safe_print("[dim]Phase 2 — RustScan: already completed, skipping[/]")
+        rustscan_ports: set[int] = set()
+    else:
+        rustscan_ports: set[int] = set()
 
     # ── Phase 2b: Async TCP — fallback / gap-filler ────────────────────
     if not rustscan_ports:
@@ -177,17 +185,20 @@ def orchestrate(cfg: ScanConfig,
         connect_timeout = cfg.async_timeout,
         out_folder      = async_out,
     )
-    async_ports = {p.port for p in async_port_infos}
-    new_from_async = async_ports - all_open_ports
-    if new_from_async:
-        safe_print(f"[info]Async scan found {len(new_from_async)} extra port(s): "
-                   f"{', '.join(str(p) for p in sorted(new_from_async))}[/]")
-    all_open_ports |= async_ports
-    result.phases_completed.append("async_tcp_scan")
-    save_state(result, cfg, out_folder)   # FIX v3.2.2
+    if "async_tcp_scan" not in result.phases_completed:  # FIX v3.3.0: skip on resume
+        async_ports = {p.port for p in async_port_infos}
+        new_from_async = async_ports - all_open_ports
+        if new_from_async:
+            safe_print(f"[info]Async scan found {len(new_from_async)} extra port(s): "
+                       f"{', '.join(str(p) for p in sorted(new_from_async))}[/]")
+        all_open_ports |= async_ports
+        result.phases_completed.append("async_tcp_scan")
+        save_state(result, cfg, out_folder)
+    else:
+        safe_print("[dim]Phase 2b — Async TCP: already completed, skipping[/]")
 
     # ── Phase 3: Masscan — optional extra sweep ────────────────────────
-    if cfg.run_masscan:
+    if cfg.run_masscan and "masscan" not in result.phases_completed:  # FIX v3.3.0
         console.print(Panel.fit("[phase] PHASE 3 — Masscan Sweep [/]"))
         _, masscan_ports = run_masscan(cfg.target, out_folder / "masscan", cfg.masscan_rate)
         if masscan_ports:
@@ -197,7 +208,11 @@ def orchestrate(cfg: ScanConfig,
                 safe_print(f"[info]Masscan added {len(new_from_masscan)} extra port(s)[/]")
             all_open_ports |= masscan_ports
         result.phases_completed.append("masscan")
-        save_state(result, cfg, out_folder)   # FIX v3.2.2
+        save_state(result, cfg, out_folder)
+    elif "masscan" in result.phases_completed:
+        safe_print("[dim]Phase 3 — Masscan: already completed, skipping[/]")
+        if result.masscan_ports:
+            all_open_ports |= set(result.masscan_ports)
 
     if all_open_ports:
         safe_print(
@@ -208,56 +223,58 @@ def orchestrate(cfg: ScanConfig,
         safe_print("[warning]No open ports found — skipping Nmap service analysis[/]")
 
     # ── Phase 4: Nmap service analysis — confirmed ports only ──────────
-    console.print(Panel.fit("[phase] PHASE 4 — Nmap Service Analysis [/]"))
     targets_to_scan = result.subdomains if result.subdomains else [cfg.target]
     all_hosts: list[HostResult] = []
-
-    if not all_open_ports:
-        safe_print("[dim]No ports to analyse — skipping[/]")
+    if "nmap" in result.phases_completed:  # FIX v3.3.0: skip on resume
+        safe_print("[dim]Phase 4 — Nmap: already completed, skipping[/]")
+        all_hosts = result.hosts
     else:
-        console.print(
-            f"[dim]{len(targets_to_scan)} target(s) | "
-            f"ports: {','.join(str(p) for p in sorted(all_open_ports))} | "
-            f"{min(cfg.threads, len(targets_to_scan))} workers[/]"
-        )
-        workers = min(cfg.threads, len(targets_to_scan))
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(), MofNCompleteColumn(), TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Nmap service scans...", total=len(targets_to_scan))
-            with ThreadPoolExecutor(max_workers=workers) as ex:
-                nmap_out = ensure_dir(out_folder / "nmap")
-                futures: dict[Future, str] = {
-                    ex.submit(
-                        nmap_worker, t, all_open_ports, nmap_out,
-                        nmap_opts.scripts, nmap_opts.version_detection, nmap_opts.timing,
-                    ): t
-                    for t in targets_to_scan
-                }
-                for fut in as_completed(futures):
-                    sd = futures[fut]
-                    try:
-                        _, hosts, errs = fut.result()
-                        with _RESULT_LOCK:
-                            all_hosts.extend(hosts)
-                            result.errors.extend(errs)
-                        svc_c = sum(len(h.ports) for h in hosts)
-                        safe_print(f"[success]  ✔ {sd} — {svc_c} service(s) identified[/]")
-                    except Exception as e:
-                        with _RESULT_LOCK:
-                            result.errors.append(f"{sd}: {e}")
-                        safe_print(f"[warning]  ✘ {sd}: {e}[/]")
-                    progress.advance(task)
-
-    result.hosts = all_hosts
-    result.phases_completed.append("nmap")
-    save_state(result, cfg, out_folder)   # FIX v3.2.2
+        console.print(Panel.fit("[phase] PHASE 4 — Nmap Service Analysis [/]"))
+        if not all_open_ports:
+            safe_print("[dim]No ports to analyse — skipping[/]")
+        else:
+            console.print(
+                f"[dim]{len(targets_to_scan)} target(s) | "
+                f"ports: {','.join(str(p) for p in sorted(all_open_ports))} | "
+                f"{min(cfg.threads, len(targets_to_scan))} workers[/]"
+            )
+            workers = min(cfg.threads, len(targets_to_scan))
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(), MofNCompleteColumn(), TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Nmap service scans...", total=len(targets_to_scan))
+                with ThreadPoolExecutor(max_workers=workers) as ex:
+                    nmap_out = ensure_dir(out_folder / "nmap")
+                    futures: dict[Future, str] = {
+                        ex.submit(
+                            nmap_worker, t, all_open_ports, nmap_out,
+                            nmap_opts.scripts, nmap_opts.version_detection, nmap_opts.timing,
+                        ): t
+                        for t in targets_to_scan
+                    }
+                    for fut in as_completed(futures):
+                        sd = futures[fut]
+                        try:
+                            _, hosts, errs = fut.result()
+                            with _RESULT_LOCK:
+                                all_hosts.extend(hosts)
+                                result.errors.extend(errs)
+                            svc_c = sum(len(h.ports) for h in hosts)
+                            safe_print(f"[success]  ✔ {sd} — {svc_c} service(s) identified[/]")
+                        except Exception as e:
+                            with _RESULT_LOCK:
+                                result.errors.append(f"{sd}: {e}")
+                            safe_print(f"[warning]  ✘ {sd}: {e}[/]")
+                        progress.advance(task)
+        result.hosts = all_hosts
+        result.phases_completed.append("nmap")
+        save_state(result, cfg, out_folder)
 
     # ── Phase 4b: CVE Lookup ──────────────────────────────────────────────────
-    if cfg.run_cve_lookup and result.hosts:   # FIX v3.2.2: was never called
+    if cfg.run_cve_lookup and result.hosts and "cve_lookup" not in result.phases_completed:  # FIX v3.3.0
         console.print(Panel.fit("[phase] PHASE 4b — CVE Lookup (NVD) [/]"))
         cve_findings = []
         for host in result.hosts:
@@ -269,11 +286,11 @@ def orchestrate(cfg: ScanConfig,
         result.nuclei_findings += cve_findings
         safe_print(f"[success]✔ CVE lookup: {len(cve_findings)} finding(s)[/]")
         result.phases_completed.append("cve_lookup")
-        save_state(result, cfg, out_folder)   # FIX v3.2.2
+        save_state(result, cfg, out_folder)   # FIX v3.3.0
 
     # ── Phase 5: Web Service Detection (httpx) ────────────────────────────
     web_targets: list[str] = []
-    if cfg.run_httpx:
+    if cfg.run_httpx and "httpx" not in result.phases_completed:  # FIX v3.3.0
         console.print(Panel.fit("[phase] PHASE 5 — Web Service Detection [/]"))
         # Build web targets from subdomains + hosts with web ports
         web_targets = list(result.subdomains) if result.subdomains else [cfg.target]
@@ -287,10 +304,10 @@ def orchestrate(cfg: ScanConfig,
         result.web_findings = run_httpx(web_targets, out_folder / "httpx")
         enrich_hosts_with_web(result.hosts, result.web_findings)
         result.phases_completed.append("httpx")
-        save_state(result, cfg, out_folder)   # FIX v3.2.2
+        save_state(result, cfg, out_folder)   # FIX v3.3.0
 
     # ── Phase 6: Directory Brute Force ────────────────────────────────────
-    if cfg.run_feroxbuster:
+    if cfg.run_feroxbuster and "directory_scan" not in result.phases_completed:  # FIX v3.3.0
         console.print(Panel.fit("[phase] PHASE 6 — Directory Discovery [/]"))
         dir_targets = [wf.url for wf in result.web_findings] or [f"https://{cfg.target}"]
         for url in dir_targets[:10]:  # cap to avoid runaway
@@ -301,37 +318,37 @@ def orchestrate(cfg: ScanConfig,
                 ]
         result.dir_findings = result.dir_findings[:1000]
         result.phases_completed.append("directory_scan")
-        save_state(result, cfg, out_folder)   # FIX v3.2.2
+        save_state(result, cfg, out_folder)   # FIX v3.3.0
 
     # ── Phase 7: Tech Fingerprinting ──────────────────────────────────────
-    if cfg.run_whatweb:
+    if cfg.run_whatweb and "whatweb" not in result.phases_completed:  # FIX v3.3.0
         console.print(Panel.fit("[phase] PHASE 7 — Tech Fingerprinting [/]"))
         ww_file = run_whatweb(f"https://{cfg.target}", out_folder / "whatweb")
         if ww_file and ww_file.exists():
             result.whatweb_findings = ww_file.read_text().splitlines()
         result.phases_completed.append("whatweb")
-        save_state(result, cfg, out_folder)   # FIX v3.2.2
+        save_state(result, cfg, out_folder)   # FIX v3.3.0
 
     # ── Phase 8: Web Vulnerability Scan (Nikto) ───────────────────────────
-    if cfg.run_nikto:
+    if cfg.run_nikto and "nikto" not in result.phases_completed:  # FIX v3.3.0
         console.print(Panel.fit("[phase] PHASE 8 — Nikto Web Scan [/]"))
         nk_file = run_nikto(f"https://{cfg.target}", out_folder / "nikto")
         if nk_file and nk_file.exists():
             result.nikto_findings = [l for l in nk_file.read_text().splitlines() if l.strip()]
         result.phases_completed.append("nikto")
-        save_state(result, cfg, out_folder)   # FIX v3.2.2
+        save_state(result, cfg, out_folder)   # FIX v3.3.0
 
     # ── Phase 9: Nuclei Vulnerability Templates ───────────────────────────
-    if cfg.run_nuclei:
+    if cfg.run_nuclei and "nuclei" not in result.phases_completed:  # FIX v3.3.0
         console.print(Panel.fit("[phase] PHASE 9 — Nuclei Vulnerability Scan [/]"))
         nuclei_targets = [wf.url for wf in result.web_findings] or [f"https://{cfg.target}"]
         for t in nuclei_targets[:20]:
             result.nuclei_findings += run_nuclei(t, out_folder / "nuclei" / sanitize_dirname(t))
         result.phases_completed.append("nuclei")
-        save_state(result, cfg, out_folder)   # FIX v3.2.2
+        save_state(result, cfg, out_folder)   # FIX v3.3.0
 
     # ── Phase 10: Screenshots ─────────────────────────────────────────────
-    if cfg.run_aquatone and result.subdomains:
+    if cfg.run_aquatone and result.subdomains and "screenshots" not in result.phases_completed:  # FIX v3.3.0
         console.print(Panel.fit("[phase] PHASE 10 — Screenshots [/]"))
         sub_file = out_folder / "subdomains" / "subdomains_merged.txt"
         if sub_file.exists():
@@ -341,12 +358,12 @@ def orchestrate(cfg: ScanConfig,
                 url_file.write_text("\n".join(wf.url for wf in result.web_findings))
                 run_gowitness(url_file, out_folder)
         result.phases_completed.append("screenshots")
-        save_state(result, cfg, out_folder)   # FIX v3.2.2
+        save_state(result, cfg, out_folder)   # FIX v3.3.0
 
     # ── Phase 11: AI Analysis ─────────────────────────────────────────────
-    if cfg.run_ai_analysis:
+    if cfg.run_ai_analysis and "ai_analysis" not in result.phases_completed:  # FIX v3.3.0
         console.print(Panel.fit("[phase] PHASE 11 — AI Analysis [/]"))
-        if cfg.ai_provider and cfg.ai_provider != "":  # FIX v3.2.2: call real LLM
+        if cfg.ai_provider and cfg.ai_provider != "":  # FIX v3.3.0: call real LLM
             analysis = run_ai_analysis(
                 result,
                 provider = cfg.ai_provider,
@@ -357,14 +374,14 @@ def orchestrate(cfg: ScanConfig,
         else:
             result.ai_analysis = _generate_ai_analysis(result)  # fallback
         result.phases_completed.append("ai_analysis")
-        save_state(result, cfg, out_folder)   # FIX v3.2.2
+        save_state(result, cfg, out_folder)   # FIX v3.3.0
 
     # ── Phase 12: Plugins ─────────────────────────────────────────────────
     plugins = discover_plugins()
     if plugins:
         run_plugins(plugins, cfg.target, out_folder, result, cfg)
         result.phases_completed.append("plugins")
-        save_state(result, cfg, out_folder)   # FIX v3.2.2
+        save_state(result, cfg, out_folder)   # FIX v3.3.0
 
     # ── Phase 13: Reports ─────────────────────────────────────────────────
     result.end_time = timestamp()

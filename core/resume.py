@@ -1,6 +1,6 @@
 """
 core/resume.py
-ReconNinja v3.2 — Scan State / Resume System
+ReconNinja v3.3 — Scan State / Resume System
 
 Saves scan state to a JSON file after each phase completes.
 If a scan crashes, use --resume <state_file> to continue from last checkpoint.
@@ -122,7 +122,7 @@ def _dict_to_result(d: dict) -> ReconResult:
 
 
 def _dict_to_config(d: dict) -> ScanConfig:
-    nmap_raw = d.get("nmap_opts", {})          # FIX v3.2.2: .get() not .pop() — don't mutate caller's dict
+    nmap_raw = d.get("nmap_opts", {})          # FIX v3.3.0: .get() not .pop() — don't mutate caller's dict
     nmap_opts = NmapOptions(
         all_ports         = nmap_raw.get("all_ports", False),
         top_ports         = nmap_raw.get("top_ports", 1000),
@@ -135,7 +135,7 @@ def _dict_to_config(d: dict) -> ScanConfig:
         extra_flags       = nmap_raw.get("extra_flags", []),
         script_args       = nmap_raw.get("script_args", None),
     )
-    profile_str = d.get("profile", "standard")  # FIX v3.2.2: .get() not .pop()
+    profile_str = d.get("profile", "standard")  # FIX v3.3.0: .get() not .pop()
     return ScanConfig(
         target            = d["target"],
         profile           = ScanProfile(profile_str),
@@ -150,11 +150,11 @@ def _dict_to_config(d: dict) -> ScanConfig:
         run_nuclei        = d.get("run_nuclei", False),
         run_httpx         = d.get("run_httpx", False),
         run_ai_analysis   = d.get("run_ai_analysis", False),
-        run_cve_lookup    = d.get("run_cve_lookup", False),   # FIX v3.2.1
-        ai_provider       = d.get("ai_provider", "groq"),     # FIX v3.2.1
-        ai_key            = d.get("ai_key", ""),               # FIX v3.2.1
-        ai_model          = d.get("ai_model", ""),             # FIX v3.2.1
-        nvd_key           = d.get("nvd_key", ""),              # FIX v3.2.1
+        run_cve_lookup    = d.get("run_cve_lookup", False),   # FIX v3.3.0
+        ai_provider       = d.get("ai_provider", "groq"),     # FIX v3.3.0
+        ai_key            = d.get("ai_key", ""),               # FIX v3.3.0
+        ai_model          = d.get("ai_model", ""),             # FIX v3.3.0
+        nvd_key           = d.get("nvd_key", ""),              # FIX v3.3.0
         masscan_rate      = d.get("masscan_rate", 5000),
         threads           = d.get("threads", 20),
         wordlist_size     = d.get("wordlist_size", "medium"),

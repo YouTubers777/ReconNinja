@@ -1,5 +1,5 @@
 """
-tests/test_report_html.py — ReconNinja v3.2
+tests/test_report_html.py — ReconNinja v3.3
 Tests for output/report_html.py
 """
 import pytest

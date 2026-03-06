@@ -1,6 +1,6 @@
 """
 core/updater.py
-ReconNinja v3.2 — Self-Update (--update)
+ReconNinja v3.3 — Self-Update (--update)
 
 Pulls the latest version from GitHub and reinstalls to ~/.reconninja/
 
@@ -24,7 +24,7 @@ from pathlib import Path
 from utils.logger import console
 
 
-GITHUB_USER = "YouTubers777"
+GITHUB_USER = "ExploitCraft"
 GITHUB_REPO = "ReconNinja"
 INSTALL_DIR = Path.home() / ".reconninja"
 RELEASES_API = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/releases/latest"
@@ -42,7 +42,7 @@ def _get_latest_release() -> tuple[str, str]:
     with urllib.request.urlopen(req, timeout=15) as resp:
         data = json.loads(resp.read().decode())
 
-    tag     = data["tag_name"]                      # e.g. v3.2.0
+    tag     = data["tag_name"]                      # e.g. v3.3.0
     zip_url = data["zipball_url"]                   # GitHub source zip
 
     # Prefer our attached release asset if it exists

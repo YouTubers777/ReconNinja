@@ -1,6 +1,6 @@
 """
 core/cve_lookup.py
-ReconNinja v3.2 — CVE Lookup via NVD API (free, no key required)
+ReconNinja v3.3 — CVE Lookup via NVD API (free, no key required)
 
 After nmap finds service versions like "Apache/2.4.52", this module
 queries the NIST NVD API and returns known CVEs for that product/version.
@@ -146,7 +146,7 @@ def lookup_cves_for_ports(
     ports:       list[PortInfo],
     target:      str,
     max_per_port: int = 3,
-    delay:        float = 6.5,   # FIX v3.2.1: NVD rate limit is 5 req/30s = 6s/req minimum (was 0.7 — caused 403s)
+    delay:        float = 6.5,   # FIX v3.3.0: NVD rate limit is 5 req/30s = 6s/req minimum (was 0.7 — caused 403s)
     api_key:      str | None = None,
 ) -> list[VulnFinding]:
     """

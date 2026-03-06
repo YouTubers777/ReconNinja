@@ -1,5 +1,5 @@
 """
-tests/test_ai_analysis.py — ReconNinja v3.2
+tests/test_ai_analysis.py — ReconNinja v3.3
 Tests for core/ai_analysis.py — no real API calls.
 """
 import pytest

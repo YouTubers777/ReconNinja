@@ -7,7 +7,7 @@
 ██║  ██║███████╗╚██████╗╚██████╔╝██║ ╚████║██║ ╚████║██║██║ ╚████║╚█████╔╝██║  ██║
 ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚════╝ ╚═╝  ╚═╝
 
-ReconNinja v3.2.2 — Elite All-in-One Recon Framework
+ReconNinja v3.3.0 — Elite All-in-One Recon Framework
   ⚠  Use ONLY against targets you own or have explicit written permission to test.
 
 Changelog v3.0 (from v2.1):
@@ -30,7 +30,7 @@ Changelog v3.0 (from v2.1):
   + OPT: crt.sh fetched in Python (no external dep required)
   + FIX: All v2.1 fixes retained
 
-Changelog v3.2 (from v3.1):
+Changelog v3.3 (from v3.1):
   + NEW: --ai flag with Groq/Ollama/Gemini/OpenAI support (--ai-provider, --ai-key)
   + NEW: --cve-lookup auto-queries NVD for open port services (free, no key needed)
   + NEW: --resume <state.json> resumes interrupted scans from last checkpoint
@@ -72,7 +72,7 @@ from core.orchestrator import orchestrate, print_tool_status
 from core.updater import run_update, print_update_status
 
 APP_NAME = "ReconNinja"
-VERSION  = "3.2.2"
+VERSION  = "3.3.0"
 
 
 

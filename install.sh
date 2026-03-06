@@ -1,86 +1,32 @@
 #!/usr/bin/env bash
 # ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║              ReconNinja v3.2.2 — Universal Installer                       ║
-# ║              https://github.com/YouTubers777/ReconNinja                    ║
+# ║              ReconNinja v3.3 — Installer                                   ║
+# ║              https://github.com/ExploitCraft/ReconNinja                    ║
 # ╚══════════════════════════════════════════════════════════════════════════════╝
-#
-# Supported platforms:
-#
-#   LINUX (Debian/Ubuntu family)
-#     · Kali Linux         · Ubuntu (all LTS)    · Debian (stable/testing)
-#     · Parrot OS          · Pop!_OS             · Linux Mint
-#     · Raspbian / Pi OS   · ElementaryOS        · Zorin OS
-#     · Tails (live mode)
-#
-#   LINUX (Red Hat family)
-#     · Fedora (38+)       · CentOS Stream        · RHEL 8/9
-#     · Rocky Linux        · AlmaLinux            · Oracle Linux
-#
-#   LINUX (Arch family)
-#     · Arch Linux         · Manjaro              · EndeavourOS
-#     · Garuda Linux       · BlackArch            · ArcoLinux
-#
-#   LINUX (Other)
-#     · openSUSE Leap/Tumbleweed  · SLES
-#     · Alpine Linux (3.x+)
-#     · Void Linux (xbps)
-#     · Gentoo (portage)
-#     · NixOS  (nix)
-#     · Solus  (eopkg)
-#     · Slackware (slackpkg, fallback)
-#     · Amazon Linux 2023
-#     · ChromeOS (Crostini / Linux container)
-#
-#   ANDROID
-#     · Termux (pkg / apt)
-#
-#   macOS
-#     · macOS 12 Monterey+  (Homebrew — auto-installed if missing)
-#     · Apple Silicon (arm64) and Intel (x86_64) both supported
-#
-#   BSD
-#     · FreeBSD (pkg)
-#     · OpenBSD (pkg_add)
-#     · NetBSD  (pkgin)
-#
-#   WSL2 / Windows
-#     · WSL2 (Ubuntu, Debian, Kali, etc.)  — treated as Linux
-#     · Native Windows → instructed to use WSL2
+# Supports: Kali · Ubuntu · Debian · Parrot · Arch · Manjaro · Fedora · CentOS
+#           Rocky · AlmaLinux · openSUSE · Alpine · macOS (Homebrew)
+# Does NOT support: Windows (use WSL2)
 #
 # What this script does:
-#   1. Detects your platform with full granularity
-#   2. Installs / validates Python 3.10+
-#   3. Installs Python dependencies (rich)
-#   4. Copies ReconNinja to ~/.reconninja/
-#   5. Creates 'ReconNinja' alias in every detected shell config
-#   6. Creates a standalone wrapper at ~/.local/bin/ReconNinja
-#   7. Installs all recon tools (nmap, rustscan, go tools, etc.)
-#   8. Runs --check-tools at the end so you know exactly what's ready
+#   1. Detects OS and blocks Windows
+#   2. Installs Python deps (rich)
+#   3. Copies tool to ~/.reconninja/ (dot folder in home)
+#   4. Creates alias  'ReconNinja'  → python3 ~/.reconninja/reconninja.py
+#   5. Installs all optional recon tools (nmap, rustscan, go tools, etc.)
 #
 # Usage:
 #   chmod +x install.sh && ./install.sh
-#
-# Flags:
-#   --skip-go       Skip all Go-based tools (subfinder, httpx, nuclei, ffuf, amass…)
-#   --skip-rust     Skip RustScan
-#   --skip-tools    Skip all external tool installs (Python + copy + alias only)
-#   --python-only   Alias for --skip-tools
-#   --force         Re-install even if already installed
-#   --no-update     Don't run 'apt update' / 'pkg update' / etc. before installing
-#   --dry-run       Print what would be done without doing it
-#   --help          Show this help
+#   ./install.sh --skip-go       # skip Go tools
+#   ./install.sh --skip-rust     # skip RustScan
+#   ./install.sh --python-only   # only Python deps + copy + alias
 
 set -euo pipefail
-
-# ── Version ───────────────────────────────────────────────────────────────────
-RN_VERSION="3.2.2"
 
 # ── Colours ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
-MAGENTA='\033[0;35m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
@@ -88,49 +34,33 @@ NC='\033[0m'
 # ── Flags ─────────────────────────────────────────────────────────────────────
 SKIP_GO=false
 SKIP_RUST=false
-SKIP_TOOLS=false
-FORCE=false
-NO_UPDATE=false
-DRY_RUN=false
+PYTHON_ONLY=false
 
 for arg in "$@"; do
     case $arg in
-        --skip-go)     SKIP_GO=true ;;
-        --skip-rust)   SKIP_RUST=true ;;
-        --skip-tools)  SKIP_TOOLS=true; SKIP_GO=true; SKIP_RUST=true ;;
-        --python-only) SKIP_TOOLS=true; SKIP_GO=true; SKIP_RUST=true ;;
-        --force)       FORCE=true ;;
-        --no-update)   NO_UPDATE=true ;;
-        --dry-run)     DRY_RUN=true ;;
-        --help|-h)
-            sed -n '/^# Usage:/,/^[^#]/p' "$0" | grep '^#' | sed 's/^# \?//'
-            exit 0
-            ;;
+        --skip-go)      SKIP_GO=true ;;
+        --skip-rust)    SKIP_RUST=true ;;
+        --python-only)  PYTHON_ONLY=true; SKIP_GO=true; SKIP_RUST=true ;;
     esac
 done
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-ok()    { echo -e "${GREEN}  ✔${NC}  $*"; }
-warn()  { echo -e "${YELLOW}  ⚠${NC}  $*"; }
-err()   { echo -e "${RED}  ✘${NC}  $*"; }
-info()  { echo -e "${CYAN}  ▶${NC}  $*"; }
-step()  { echo -e "\n${BOLD}${CYAN}── $* ──${NC}"; }
-note()  { echo -e "${DIM}     $*${NC}"; }
+ok()   { echo -e "${GREEN}  ✔${NC}  $*"; }
+warn() { echo -e "${YELLOW}  ⚠${NC}  $*"; }
+err()  { echo -e "${RED}  ✘${NC}  $*"; }
+info() { echo -e "${CYAN}  ▶${NC}  $*"; }
+step() { echo -e "\n${BOLD}${CYAN}── $* ──${NC}"; }
+cmd_exists() { command -v "$1" &>/dev/null; }
 
-cmd_exists()  { command -v "$1" &>/dev/null; }
-is_termux()   { [[ -n "${TERMUX_VERSION:-}" ]] || [[ -d "/data/data/com.termux" ]]; }
-is_wsl()      { [[ -f /proc/version ]] && grep -qi microsoft /proc/version; }
-is_macos()    { [[ "$(uname -s)" == "Darwin" ]]; }
-is_freebsd()  { [[ "$(uname -s)" == "FreeBSD" ]]; }
-is_openbsd()  { [[ "$(uname -s)" == "OpenBSD" ]]; }
-is_netbsd()   { [[ "$(uname -s)" == "NetBSD" ]]; }
-
-dry() {
-    if $DRY_RUN; then
-        echo -e "${MAGENTA}  [DRY-RUN]${NC}  $*"
-        return 0
+install_go_tool() {
+    local bin="$1" pkg="$2"
+    if cmd_exists "$bin"; then
+        ok "$bin already installed"
+    else
+        info "Installing $bin..."
+        go install "$pkg" 2>&1 | tail -1 && ok "$bin installed" \
+            || warn "$bin install failed — install manually"
     fi
-    "$@"
 }
 
 # ── Banner ────────────────────────────────────────────────────────────────────
@@ -145,259 +75,105 @@ cat << 'BANNER'
 ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚════╝ ╚═╝  ╚═╝
 BANNER
 echo -e "${NC}"
-echo -e "${BOLD}  ReconNinja v${RN_VERSION} — Universal Installer${NC}"
-echo -e "${DIM}  https://github.com/YouTubers777/ReconNinja${NC}"
+echo -e "${BOLD}  ReconNinja v3.3 — Installer${NC}"
+echo -e "${DIM}  https://github.com/ExploitCraft/ReconNinja${NC}"
 echo ""
-echo -e "${RED}  ⚠  Use ONLY against systems you own or have explicit written permission to test.${NC}"
+echo -e "${RED}  ⚠  Use ONLY against targets you own or have written permission to test.${NC}"
 echo ""
 
-$DRY_RUN && echo -e "${MAGENTA}${BOLD}  [DRY-RUN MODE — no changes will be made]${NC}\n"
-
-# ── Native Windows block ──────────────────────────────────────────────────────
+# ── Windows block ─────────────────────────────────────────────────────────────
 if [[ "${OSTYPE:-}" == "msys" || "${OSTYPE:-}" == "cygwin" || \
       "${OSTYPE:-}" == "win32" || -n "${WINDIR:-}" ]]; then
-    err "Native Windows is not supported."
+    err "Windows is not supported."
     echo ""
-    echo "  Use WSL2 (Windows Subsystem for Linux):"
-    echo "    1. Open PowerShell as Administrator"
-    echo "    2. Run:  wsl --install"
-    echo "    3. Restart, open WSL terminal, then re-run this script"
-    echo "    Docs: https://learn.microsoft.com/en-us/windows/wsl/install"
+    echo "  Please use WSL2 (Windows Subsystem for Linux):"
+    echo "  https://learn.microsoft.com/en-us/windows/wsl/install"
     echo ""
     exit 1
 fi
 
-# ── Platform & package manager detection ─────────────────────────────────────
-step "Detecting platform"
-DISTRO_LIKE=""
+# ── OS / package manager detection ───────────────────────────────────────────
+step "Detecting OS"
+
+DISTRO="unknown"
 PKG_MGR="unknown"
-SUDO="sudo"
+IS_MACOS=false
 
-# Termux (Android) — detect first, has no sudo
-if is_termux; then
-    PKG_MGR="pkg"
-    SUDO=""
-    ok "Termux (Android) detected"
-
-# macOS
-elif is_macos; then
-    ARCH_MAC="$(uname -m)"
-    ok "macOS detected (${ARCH_MAC})"
-    if cmd_exists brew; then
-        PKG_MGR="brew"
-        ok "Homebrew found: $(brew --version | head -1)"
-    else
-        warn "Homebrew not found — installing it now..."
-        dry /bin/bash -c \
-            "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        # Apple Silicon: add brew to PATH
-        if [[ "$ARCH_MAC" == "arm64" ]]; then
-            eval "$(/opt/homebrew/bin/brew shellenv)" 2>/dev/null || true
-        fi
-        PKG_MGR="brew"
-        ok "Homebrew installed"
-    fi
-
-# FreeBSD
-elif is_freebsd; then
-    PKG_MGR="freebsd_pkg"
-    ok "FreeBSD detected"
-
-# OpenBSD
-elif is_openbsd; then
-    PKG_MGR="openbsd_pkg"
-    ok "OpenBSD detected"
-
-# NetBSD
-elif is_netbsd; then
-    PKG_MGR="pkgin"
-    ok "NetBSD detected"
-
-# Linux
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    IS_MACOS=true
+    DISTRO="macos"
+    PKG_MGR="brew"
+    ok "macOS detected"
 elif [[ -f /etc/os-release ]]; then
-    # shellcheck source=/dev/null
     source /etc/os-release
-    DISTRO_LIKE="${ID_LIKE:-}"
-
+    DISTRO="${ID:-unknown}"
     case "${ID:-}" in
-        # ── Debian/Ubuntu family ──────────────────────────────────────────
-        kali|ubuntu|debian|parrot|linuxmint|pop|elementary|zorin|tails| \
-        raspbian|kali-rolling|deepin|mx|devuan|pureos)
-            PKG_MGR="apt"
-            _wsl_tag=""; is_wsl && _wsl_tag=" [WSL2]"
-            ok "Detected: ${PRETTY_NAME:-$ID}${_wsl_tag} (apt)"
-            ;;
-        # ── Arch family ───────────────────────────────────────────────────
-        arch|manjaro|endeavouros|garuda|artix|blackarch|arcolinux|cachyos)
-            PKG_MGR="pacman"
-            ok "Detected: ${PRETTY_NAME:-$ID} (pacman)"
-            ;;
-        # ── Fedora / Red Hat family ───────────────────────────────────────
-        fedora)
-            PKG_MGR="dnf"
-            ok "Detected: ${PRETTY_NAME:-$ID} (dnf)"
-            ;;
-        centos|rhel|rocky|almalinux|ol|amzn)
-            # amzn = Amazon Linux; try dnf first, fall back to yum
-            if cmd_exists dnf; then PKG_MGR="dnf"
-            else PKG_MGR="yum"; fi
-            ok "Detected: ${PRETTY_NAME:-$ID} (${PKG_MGR})"
-            ;;
-        # ── openSUSE / SLES ───────────────────────────────────────────────
-        opensuse*|sles|sled)
-            PKG_MGR="zypper"
-            ok "Detected: ${PRETTY_NAME:-$ID} (zypper)"
-            ;;
-        # ── Alpine ────────────────────────────────────────────────────────
+        kali|ubuntu|debian|parrot|linuxmint|pop)
+            PKG_MGR="apt"; ok "Detected: ${PRETTY_NAME:-$ID} (apt)" ;;
+        arch|manjaro|endeavouros|garuda)
+            PKG_MGR="pacman"; ok "Detected: ${PRETTY_NAME:-$ID} (pacman)" ;;
+        fedora|centos|rhel|rocky|almalinux)
+            PKG_MGR="dnf"; ok "Detected: ${PRETTY_NAME:-$ID} (dnf)" ;;
+        opensuse*|sles)
+            PKG_MGR="zypper"; ok "Detected: ${PRETTY_NAME:-$ID} (zypper)" ;;
         alpine)
-            PKG_MGR="apk"
-            ok "Detected: Alpine Linux $(cat /etc/alpine-release 2>/dev/null || echo '') (apk)"
-            ;;
-        # ── Void Linux ────────────────────────────────────────────────────
-        void)
-            PKG_MGR="xbps"
-            ok "Detected: Void Linux (xbps)"
-            ;;
-        # ── Gentoo ────────────────────────────────────────────────────────
-        gentoo)
-            PKG_MGR="emerge"
-            ok "Detected: Gentoo Linux (emerge)"
-            ;;
-        # ── NixOS ─────────────────────────────────────────────────────────
-        nixos)
-            PKG_MGR="nix"
-            ok "Detected: NixOS (nix)"
-            warn "NixOS: tool install is best-effort. Consider using nix-shell."
-            ;;
-        # ── Solus ─────────────────────────────────────────────────────────
-        solus)
-            PKG_MGR="eopkg"
-            ok "Detected: Solus (eopkg)"
-            ;;
-        # ── Slackware ─────────────────────────────────────────────────────
-        slackware)
-            PKG_MGR="slackpkg"
-            ok "Detected: Slackware (slackpkg) — limited tool support"
-            ;;
+            PKG_MGR="apk"; ok "Detected: Alpine Linux (apk)" ;;
         *)
-            # Fallback: probe which package manager is available
-            warn "Unknown distro '${ID:-?}' — probing package managers..."
-            if   cmd_exists apt-get;    then PKG_MGR="apt"
-            elif cmd_exists pacman;     then PKG_MGR="pacman"
-            elif cmd_exists dnf;        then PKG_MGR="dnf"
-            elif cmd_exists yum;        then PKG_MGR="yum"
-            elif cmd_exists zypper;     then PKG_MGR="zypper"
-            elif cmd_exists apk;        then PKG_MGR="apk"
-            elif cmd_exists xbps-install; then PKG_MGR="xbps"
-            elif cmd_exists emerge;     then PKG_MGR="emerge"
-            elif cmd_exists eopkg;      then PKG_MGR="eopkg"
-            elif cmd_exists nix-env;    then PKG_MGR="nix"
-            elif cmd_exists pkg;        then PKG_MGR="freebsd_pkg"
-            else
-                warn "No known package manager found — manual installs may be needed"
-                PKG_MGR="unknown"
+            # Fallback — probe which package manager exists
+            if   cmd_exists apt-get; then PKG_MGR="apt"
+            elif cmd_exists pacman;  then PKG_MGR="pacman"
+            elif cmd_exists dnf;     then PKG_MGR="dnf"
+            elif cmd_exists yum;     then PKG_MGR="yum"
+            elif cmd_exists zypper;  then PKG_MGR="zypper"
+            elif cmd_exists apk;     then PKG_MGR="apk"
             fi
-            warn "Falling back to: $PKG_MGR"
+            warn "Unknown distro '$DISTRO' — using $PKG_MGR"
             ;;
     esac
-
-    # ID_LIKE fallback for derived distros not caught above
-    if [[ "$PKG_MGR" == "unknown" && -n "$DISTRO_LIKE" ]]; then
-        case "$DISTRO_LIKE" in
-            *debian*|*ubuntu*) PKG_MGR="apt" ;;
-            *arch*)            PKG_MGR="pacman" ;;
-            *fedora*|*rhel*)   PKG_MGR="dnf" ;;
-            *suse*)            PKG_MGR="zypper" ;;
-        esac
-        [[ "$PKG_MGR" != "unknown" ]] && info "Using $PKG_MGR (from ID_LIKE=$DISTRO_LIKE)"
-    fi
-
 else
-    # No /etc/os-release — probe directly
-    warn "Cannot read /etc/os-release — probing..."
-    if   cmd_exists apt-get;      then PKG_MGR="apt"
-    elif cmd_exists pacman;       then PKG_MGR="pacman"
-    elif cmd_exists dnf;          then PKG_MGR="dnf"
-    elif cmd_exists yum;          then PKG_MGR="yum"
-    elif cmd_exists brew;         then PKG_MGR="brew"
-    elif cmd_exists apk;          then PKG_MGR="apk"
-    elif cmd_exists xbps-install; then PKG_MGR="xbps"
-    elif cmd_exists pkg;          then PKG_MGR="freebsd_pkg"
-    else warn "Unknown environment — proceeding with best-effort install"
+    warn "Cannot read /etc/os-release — probing package managers..."
+    if   cmd_exists apt-get; then PKG_MGR="apt"
+    elif cmd_exists pacman;  then PKG_MGR="pacman"
+    elif cmd_exists dnf;     then PKG_MGR="dnf"
+    elif cmd_exists brew;    then PKG_MGR="brew"; IS_MACOS=true
+    else warn "No known package manager found — some tools may not install"
     fi
 fi
 
-# No sudo in Termux or when already root
-[[ "$(id -u)" -eq 0 ]] && SUDO=""
-note "Package manager: ${PKG_MGR}  |  sudo: '${SUDO:-none}'"
-
-# ── pkg_install / pkg_update central dispatchers ──────────────────────────────
+# ── pkg_install helper — works on any supported OS ───────────────────────────
 pkg_install() {
     local pkg="$1"
-    local apt_pkg="${2:-$pkg}"     # optional alternate name for apt
-    local brew_pkg="${3:-$pkg}"    # optional alternate name for brew
-
     case "$PKG_MGR" in
-        apt)          dry $SUDO apt-get install -y -qq "$apt_pkg" ;;
-        pacman)       dry $SUDO pacman -S --noconfirm --needed "$pkg" ;;
-        dnf)          dry $SUDO dnf install -y "$pkg" ;;
-        yum)          dry $SUDO yum install -y "$pkg" ;;
-        zypper)       dry $SUDO zypper install -y "$pkg" ;;
-        apk)          dry $SUDO apk add --no-cache "$pkg" ;;
-        xbps)         dry $SUDO xbps-install -y "$pkg" ;;
-        emerge)       dry $SUDO emerge -q "$pkg" ;;
-        nix)          dry nix-env -iA nixpkgs."$pkg" ;;
-        eopkg)        dry $SUDO eopkg install -y "$pkg" ;;
-        slackpkg)     dry $SUDO slackpkg install "$pkg" ;;
-        freebsd_pkg)  dry $SUDO pkg install -y "$pkg" ;;
-        openbsd_pkg)  dry $SUDO pkg_add "$pkg" ;;
-        pkgin)        dry $SUDO pkgin -y install "$pkg" ;;
-        brew)         dry brew install "$brew_pkg" ;;
-        pkg)          dry pkg install -y "$pkg" ;;    # Termux
-        *)            warn "Cannot auto-install '$pkg' — unknown package manager"; return 1 ;;
+        apt)    sudo apt-get install -y -qq "$pkg" ;;
+        pacman) sudo pacman -S --noconfirm "$pkg" ;;
+        dnf)    sudo dnf install -y "$pkg" ;;
+        yum)    sudo yum install -y "$pkg" ;;
+        zypper) sudo zypper install -y "$pkg" ;;
+        apk)    sudo apk add --no-cache "$pkg" ;;
+        brew)   brew install "$pkg" ;;
+        *)      warn "Cannot auto-install $pkg — unknown package manager"; return 1 ;;
     esac
 }
 
 pkg_update() {
-    $NO_UPDATE && return 0
-    info "Updating package lists..."
     case "$PKG_MGR" in
-        apt)         dry $SUDO apt-get update -qq ;;
-        pacman)      dry $SUDO pacman -Sy --noconfirm ;;
-        dnf)         dry $SUDO dnf check-update -q || true ;;
-        yum)         dry $SUDO yum check-update -q || true ;;
-        zypper)      dry $SUDO zypper refresh ;;
-        apk)         dry $SUDO apk update ;;
-        xbps)        dry $SUDO xbps-install -S ;;
-        brew)        dry brew update ;;
-        pkg)         dry pkg update ;;   # Termux
-        freebsd_pkg) dry $SUDO pkg update ;;
-        pkgin)       dry $SUDO pkgin update ;;
-        nix)         dry nix-channel --update ;;
-        *)           true ;;
+        apt)    sudo apt-get update -qq ;;
+        pacman) sudo pacman -Sy --noconfirm ;;
+        dnf)    sudo dnf check-update -q || true ;;
+        brew)   brew update ;;
+        apk)    sudo apk update ;;
+        *)      true ;;
     esac
 }
 
-# ── Termux extra: ensure storage & base utils ─────────────────────────────────
-if is_termux; then
-    step "Termux setup"
-    if ! cmd_exists curl; then
-        dry pkg install -y curl
-    fi
-    if ! cmd_exists git; then
-        dry pkg install -y git
-    fi
-    ok "Termux base utilities ready"
-fi
-
-# ── Python 3.10+ ──────────────────────────────────────────────────────────────
+# ── Python check ──────────────────────────────────────────────────────────────
 step "Python 3.10+"
 
 PYTHON=""
-for py in python3.12 python3.11 python3.10 python3 python; do
+for py in python3.12 python3.11 python3.10 python3; do
     if cmd_exists "$py"; then
-        _maj=$("$py" -c 'import sys; print(sys.version_info.major)' 2>/dev/null || echo 0)
-        _min=$("$py" -c 'import sys; print(sys.version_info.minor)' 2>/dev/null || echo 0)
+        _maj=$("$py" -c 'import sys; print(sys.version_info.major)')
+        _min=$("$py" -c 'import sys; print(sys.version_info.minor)')
         if [[ "$_maj" -ge 3 && "$_min" -ge 10 ]]; then
             PYTHON="$py"
             ok "$py (${_maj}.${_min}) found"
@@ -407,489 +183,257 @@ for py in python3.12 python3.11 python3.10 python3 python; do
 done
 
 if [[ -z "$PYTHON" ]]; then
-    warn "Python 3.10+ not found — attempting to install..."
-    case "$PKG_MGR" in
-        apt)
-            dry $SUDO apt-get install -y -qq python3 python3-pip python3-venv
-            ;;
-        pacman)
-            dry $SUDO pacman -S --noconfirm python python-pip
-            ;;
-        dnf|yum)
-            dry $SUDO ${PKG_MGR} install -y python3 python3-pip
-            ;;
-        brew)
-            dry brew install python3
-            ;;
-        apk)
-            dry $SUDO apk add python3 py3-pip
-            ;;
-        pkg)   # Termux
-            dry pkg install -y python
-            ;;
-        xbps)
-            dry $SUDO xbps-install -y python3 python3-pip
-            ;;
-        eopkg)
-            dry $SUDO eopkg install -y python3 python3-pip
-            ;;
-        freebsd_pkg)
-            dry $SUDO pkg install -y python311 py311-pip
-            ;;
-        nix)
-            warn "NixOS: run 'nix-shell -p python311' or add to configuration.nix"
-            ;;
-        *)
-            err "Cannot auto-install Python. Get it from: https://www.python.org/downloads/"
-            exit 1
-            ;;
-    esac
-
-    # Re-check
-    for py in python3.12 python3.11 python3.10 python3 python; do
-        if cmd_exists "$py"; then
-            _maj=$("$py" -c 'import sys; print(sys.version_info.major)' 2>/dev/null || echo 0)
-            _min=$("$py" -c 'import sys; print(sys.version_info.minor)' 2>/dev/null || echo 0)
-            if [[ "$_maj" -ge 3 && "$_min" -ge 10 ]]; then
-                PYTHON="$py"; ok "$py installed (${_maj}.${_min})"; break
-            fi
-        fi
-    done
-
-    [[ -z "$PYTHON" ]] && { err "Python 3.10+ install failed. Install manually."; exit 1; }
+    err "Python 3.10+ not found. Install from https://www.python.org/downloads/"
+    exit 1
 fi
 
 # pip
 PIP=""
-for pip_cmd in pip3 pip; do
-    if cmd_exists "$pip_cmd"; then PIP="$pip_cmd"; break; fi
+for pip in pip3 pip; do
+    if cmd_exists "$pip"; then PIP="$pip"; break; fi
 done
-
 if [[ -z "$PIP" ]]; then
     info "pip not found — installing..."
-    case "$PKG_MGR" in
-        apt)    dry $SUDO apt-get install -y -qq python3-pip ;;
-        pacman) dry $SUDO pacman -S --noconfirm python-pip ;;
-        dnf|yum) dry $SUDO ${PKG_MGR} install -y python3-pip ;;
-        brew)   dry brew install python3 ;;
-        apk)    dry $SUDO apk add py3-pip ;;
-        pkg)    dry pkg install -y python ;;
-        xbps)   dry $SUDO xbps-install -y python3-pip ;;
-        freebsd_pkg) dry $SUDO pkg install -y py311-pip ;;
-        *)      dry "$PYTHON" -m ensurepip --upgrade 2>/dev/null || warn "pip install failed" ;;
-    esac
-    for pip_cmd in pip3 pip; do
-        cmd_exists "$pip_cmd" && { PIP="$pip_cmd"; break; }
-    done
-    [[ -z "$PIP" ]] && PIP="$PYTHON -m pip"
+    pkg_install python3-pip && PIP="pip3" || { err "pip install failed"; exit 1; }
 fi
 
-note "Using pip: $PIP"
-
-# ── pip install helper (handles --break-system-packages gracefully) ────────────
-pip_install() {
-    if $DRY_RUN; then
-        echo -e "${MAGENTA}  [DRY-RUN]${NC}  pip install $*"
-        return 0
-    fi
-    $PIP install "$@" --break-system-packages -q 2>/dev/null \
-        || $PIP install "$@" -q 2>/dev/null \
-        || $PYTHON -m pip install "$@" -q 2>/dev/null \
-        || { warn "pip install $* failed"; return 1; }
-}
-
-# ── Python dependencies ───────────────────────────────────────────────────────
+# ── Install pip deps ──────────────────────────────────────────────────────────
 step "Python dependencies"
+info "Installing rich..."
+$PIP install -r "$(dirname "$0")/requirements.txt" --break-system-packages -q 2>/dev/null \
+    || $PIP install rich -q 2>/dev/null \
+    || { err "pip install rich failed"; exit 1; }
+ok "rich installed"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REQ_FILE="$SCRIPT_DIR/requirements.txt"
-
-if [[ -f "$REQ_FILE" ]]; then
-    info "Installing from requirements.txt..."
-    pip_install -r "$REQ_FILE" && ok "requirements.txt installed"
-else
-    pip_install rich && ok "rich installed"
-fi
-
-# ── Copy ReconNinja to ~/.reconninja/ ─────────────────────────────────────────
-step "Installing ReconNinja to ~/.reconninja/"
+# ── Create ~/.reconninja/ dot folder ─────────────────────────────────────────
+step "Creating ~/.reconninja/ installation folder"
 
 INSTALL_DIR="$HOME/.reconninja"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [[ -d "$INSTALL_DIR" ]] && ! $FORCE; then
-    warn "~/.reconninja already exists — updating in place"
-    info "Backing up existing install..."
-    dry cp -r "$INSTALL_DIR" "${INSTALL_DIR}_backup_$(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
+if [[ -d "$INSTALL_DIR" ]]; then
+    warn "~/.reconninja already exists — updating..."
+else
+    info "Creating $INSTALL_DIR ..."
+    mkdir -p "$INSTALL_DIR"
+    ok "Created $INSTALL_DIR"
 fi
 
-dry mkdir -p "$INSTALL_DIR"
-info "Copying files to $INSTALL_DIR ..."
-dry cp -r "$SCRIPT_DIR/." "$INSTALL_DIR/"
-dry chmod +x "$INSTALL_DIR/reconninja.py"
-ok "ReconNinja $RN_VERSION installed to $INSTALL_DIR"
+# Copy all tool files into ~/.reconninja/
+info "Copying ReconNinja files → $INSTALL_DIR ..."
+cp -r "$SCRIPT_DIR/." "$INSTALL_DIR/"
+chmod +x "$INSTALL_DIR/reconninja.py"
+ok "Files copied to $INSTALL_DIR"
 
-# ── Shell alias + PATH setup ──────────────────────────────────────────────────
-step "Shell alias & PATH"
+# ── Create alias 'ReconNinja' ─────────────────────────────────────────────────
+step "Creating 'ReconNinja' alias"
 
-ALIAS_CMD="$PYTHON $INSTALL_DIR/reconninja.py"
-ALIAS_LINE="alias ReconNinja='$ALIAS_CMD'"
-ALIAS_COMMENT="# ReconNinja v${RN_VERSION} — https://github.com/YouTubers777/ReconNinja"
+ALIAS_LINE="alias ReconNinja='$PYTHON $INSTALL_DIR/reconninja.py'"
+ALIAS_COMMENT="# ReconNinja v3.3 — https://github.com/ExploitCraft/ReconNinja"
 
-# Collect all shell config files that exist
+# Detect which shell config files to write to
 SHELL_CONFIGS=()
-[[ -f "$HOME/.bashrc"                    ]] && SHELL_CONFIGS+=("$HOME/.bashrc")
-[[ -f "$HOME/.bash_profile"              ]] && SHELL_CONFIGS+=("$HOME/.bash_profile")
-[[ -f "$HOME/.profile"                   ]] && SHELL_CONFIGS+=("$HOME/.profile")
-[[ -f "$HOME/.zshrc"                     ]] && SHELL_CONFIGS+=("$HOME/.zshrc")
-[[ -f "$HOME/.zprofile"                  ]] && SHELL_CONFIGS+=("$HOME/.zprofile")
-[[ -f "$HOME/.config/fish/config.fish"   ]] && SHELL_CONFIGS+=("$HOME/.config/fish/config.fish")
-[[ -f "$HOME/.kshrc"                     ]] && SHELL_CONFIGS+=("$HOME/.kshrc")
-[[ -f "$HOME/.tcshrc"                    ]] && SHELL_CONFIGS+=("$HOME/.tcshrc")
 
-# Termux: ~/.bashrc is in $HOME which is /data/data/com.termux/files/home
-# Termux: ensure ~/.bashrc exists
-if is_termux && [[ ! -f "$HOME/.bashrc" ]]; then
-    $DRY_RUN || touch "$HOME/.bashrc"
-    SHELL_CONFIGS+=("$HOME/.bashrc")
-fi
+# Current user's default shell
+DEFAULT_SHELL="$(basename "${SHELL:-/bin/bash}")"
 
-# If nothing exists, create based on current shell
+# Always try to write to all that exist
+[[ -f "$HOME/.bashrc"   ]] && SHELL_CONFIGS+=("$HOME/.bashrc")
+[[ -f "$HOME/.bash_profile" ]] && SHELL_CONFIGS+=("$HOME/.bash_profile")
+[[ -f "$HOME/.zshrc"    ]] && SHELL_CONFIGS+=("$HOME/.zshrc")
+[[ -f "$HOME/.zprofile" ]] && SHELL_CONFIGS+=("$HOME/.zprofile")
+[[ -f "$HOME/.config/fish/config.fish" ]] && SHELL_CONFIGS+=("$HOME/.config/fish/config.fish")
+
+# If nothing found yet, create the right one based on current shell
 if [[ ${#SHELL_CONFIGS[@]} -eq 0 ]]; then
-    DEFAULT_SHELL="$(basename "${SHELL:-/bin/bash}")"
     case "$DEFAULT_SHELL" in
-        zsh)  $DRY_RUN || touch "$HOME/.zshrc";  SHELL_CONFIGS+=("$HOME/.zshrc") ;;
-        fish) $DRY_RUN || mkdir -p "$HOME/.config/fish"
-              $DRY_RUN || touch "$HOME/.config/fish/config.fish"
+        zsh)  touch "$HOME/.zshrc";   SHELL_CONFIGS+=("$HOME/.zshrc") ;;
+        fish) mkdir -p "$HOME/.config/fish"
+              touch "$HOME/.config/fish/config.fish"
               SHELL_CONFIGS+=("$HOME/.config/fish/config.fish") ;;
-        ksh)  $DRY_RUN || touch "$HOME/.kshrc";  SHELL_CONFIGS+=("$HOME/.kshrc") ;;
-        *)    $DRY_RUN || touch "$HOME/.bashrc";  SHELL_CONFIGS+=("$HOME/.bashrc") ;;
+        *)    touch "$HOME/.bashrc";  SHELL_CONFIGS+=("$HOME/.bashrc") ;;
     esac
 fi
 
-# Helper: add or update a line in a config file
-upsert_line() {
-    local file="$1" pattern="$2" line="$3"
-    $DRY_RUN && { echo -e "${MAGENTA}  [DRY-RUN]${NC}  upsert '$line' in $file"; return 0; }
-    if grep -q "$pattern" "$file" 2>/dev/null; then
-        if is_macos; then
-            sed -i '' "s|${pattern}.*|${line}|g" "$file"
-        else
-            sed -i "s|${pattern}.*|${line}|g" "$file"
-        fi
-    else
-        { echo ""; echo "$ALIAS_COMMENT"; echo "$line"; } >> "$file"
-    fi
-}
-
+# Write alias to each config file
+ALIAS_WRITTEN=false
 for cfg_file in "${SHELL_CONFIGS[@]}"; do
-    # Fish uses different alias syntax
-    if [[ "$cfg_file" == *"fish"* ]]; then
-        fish_line="alias ReconNinja '$ALIAS_CMD'"
-        upsert_line "$cfg_file" "alias ReconNinja" "$fish_line"
-        # Fish PATH
-        if ! grep -q ".local/bin" "$cfg_file" 2>/dev/null; then
-            # fish_add_path needs double quotes so $HOME expands at write time
-            $DRY_RUN || echo "fish_add_path $HOME/.local/bin" >> "$cfg_file"
+    if grep -q "alias ReconNinja=" "$cfg_file" 2>/dev/null; then
+        # Update existing alias
+        if [[ "$(uname -s)" == "Darwin" ]]; then
+            sed -i '' "s|alias ReconNinja=.*|${ALIAS_LINE}|g" "$cfg_file"
+        else
+            sed -i "s|alias ReconNinja=.*|${ALIAS_LINE}|g" "$cfg_file"
         fi
-        ok "Fish alias → $cfg_file"
+        ok "Updated alias in $cfg_file"
     else
-        upsert_line "$cfg_file" "alias ReconNinja=" "$ALIAS_LINE"
-        # PATH entry
-        if ! grep -q '\.local/bin' "$cfg_file" 2>/dev/null; then
-            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$cfg_file" 2>/dev/null || true
-        fi
-        ok "Bash/Zsh alias → $cfg_file"
+        {
+            echo ""
+            echo "$ALIAS_COMMENT"
+            echo "$ALIAS_LINE"
+        } >> "$cfg_file"
+        ok "Alias added to $cfg_file"
     fi
+    ALIAS_WRITTEN=true
 done
 
-# Standalone wrapper script — works from cron, scripts, non-interactive shells
-WRAPPER_DIR="$HOME/.local/bin"
-dry mkdir -p "$WRAPPER_DIR"
-
-if ! $DRY_RUN; then
-cat > "$WRAPPER_DIR/ReconNinja" << WRAPPER
-#!/usr/bin/env bash
-# ReconNinja v${RN_VERSION} wrapper — auto-generated by install.sh
-exec $ALIAS_CMD "\$@"
-WRAPPER
-chmod +x "$WRAPPER_DIR/ReconNinja"
+# Fish shell needs different syntax
+if [[ -f "$HOME/.config/fish/config.fish" ]]; then
+    FISH_ALIAS="alias ReconNinja '$PYTHON $INSTALL_DIR/reconninja.py'"
+    if grep -q "alias ReconNinja" "$HOME/.config/fish/config.fish" 2>/dev/null; then
+        sed -i "s|alias ReconNinja.*|${FISH_ALIAS}|g" "$HOME/.config/fish/config.fish"
+    else
+        {
+            echo ""
+            echo "# ReconNinja v3.3"
+            echo "$FISH_ALIAS"
+        } >> "$HOME/.config/fish/config.fish"
+    fi
+    ok "Fish alias added to ~/.config/fish/config.fish"
 fi
 
-ok "Wrapper → $WRAPPER_DIR/ReconNinja"
+# Also create a standalone wrapper script in ~/.local/bin so it works even
+# in shells where aliases aren't loaded (cron, scripts, etc.)
+WRAPPER_DIR="$HOME/.local/bin"
+mkdir -p "$WRAPPER_DIR"
+cat > "$WRAPPER_DIR/ReconNinja" << WRAPPER
+#!/usr/bin/env bash
+# ReconNinja v3.3 wrapper — auto-generated by install.sh
+exec $PYTHON $INSTALL_DIR/reconninja.py "\$@"
+WRAPPER
+chmod +x "$WRAPPER_DIR/ReconNinja"
+ok "Wrapper script created at $WRAPPER_DIR/ReconNinja"
+
+# Add ~/.local/bin to PATH if not already there
+for cfg_file in "${SHELL_CONFIGS[@]}"; do
+    if ! grep -q "\.local/bin" "$cfg_file" 2>/dev/null; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$cfg_file"
+        ok "Added ~/.local/bin to PATH in $cfg_file"
+    fi
+done
 export PATH="$HOME/.local/bin:$PATH"
 
-# ── Activation hint helper (defined here — used multiple times below) ─────────
-_print_activate_hint() {
+if $ALIAS_WRITTEN; then
     echo ""
-    echo -e "  ${BOLD}Activate the alias in your current terminal:${NC}"
+    echo -e "  ${BOLD}After install, activate the alias with:${NC}"
+    echo -e "  ${CYAN}  source ~/.bashrc${NC}    (bash)"
+    echo -e "  ${CYAN}  source ~/.zshrc${NC}     (zsh)"
+    echo -e "  ${CYAN}  source ~/.config/fish/config.fish${NC}  (fish)"
     echo ""
-    [[ -f "$HOME/.bashrc"   ]] && echo -e "  ${CYAN}source ~/.bashrc${NC}              (bash)"
-    [[ -f "$HOME/.zshrc"    ]] && echo -e "  ${CYAN}source ~/.zshrc${NC}               (zsh)"
-    [[ -f "$HOME/.config/fish/config.fish" ]] \
-        && echo -e "  ${CYAN}source ~/.config/fish/config.fish${NC}  (fish)"
-    is_termux && echo -e "  ${CYAN}source ~/.bashrc${NC}              (Termux)"
-    echo ""
-    echo -e "  Then just type: ${GREEN}${BOLD}ReconNinja${NC}"
-    echo ""
-}
+    echo -e "  Then run:  ${GREEN}${BOLD}ReconNinja${NC}"
+fi
 
-# ── Early exit for --skip-tools ───────────────────────────────────────────────
-if $SKIP_TOOLS; then
+# ── Early exit for --python-only ──────────────────────────────────────────────
+if $PYTHON_ONLY; then
     echo ""
     ok "Python-only install complete."
-    _print_activate_hint
+    echo -e "  Run: ${CYAN}ReconNinja --check-tools${NC}"
+    echo ""
     exit 0
 fi
 
 # ── Update package lists ──────────────────────────────────────────────────────
 step "Updating package lists"
-pkg_update || warn "Package update failed — continuing anyway"
+pkg_update || warn "Package list update failed — continuing anyway"
 
-# ── System tools (OS-aware) ───────────────────────────────────────────────────
-step "System tools"
+# ── System tools: nmap, masscan, nikto, whatweb ───────────────────────────────
+step "System tools (nmap · masscan · nikto · whatweb)"
 
-# nmap
-if cmd_exists nmap && ! $FORCE; then
-    ok "nmap already installed"
-else
-    info "Installing nmap..."
-    _nmap_ok=false
-    case "$PKG_MGR" in
-        apt)         dry $SUDO apt-get install -y -qq nmap         && _nmap_ok=true ;;
-        pacman)      dry $SUDO pacman -S --noconfirm nmap          && _nmap_ok=true ;;
-        dnf|yum)     dry $SUDO ${PKG_MGR} install -y nmap         && _nmap_ok=true ;;
-        brew)        dry brew install nmap                         && _nmap_ok=true ;;
-        apk)         dry $SUDO apk add nmap nmap-scripts           && _nmap_ok=true ;;
-        pkg)         dry pkg install -y nmap                       && _nmap_ok=true ;;
-        xbps)        dry $SUDO xbps-install -y nmap                && _nmap_ok=true ;;
-        zypper)      dry $SUDO zypper install -y nmap              && _nmap_ok=true ;;
-        emerge)      dry $SUDO emerge -q net-analyzer/nmap         && _nmap_ok=true ;;
-        freebsd_pkg) dry $SUDO pkg install -y nmap                 && _nmap_ok=true ;;
-        nix)         dry nix-env -iA nixpkgs.nmap                  && _nmap_ok=true ;;
-        eopkg)       dry $SUDO eopkg install -y nmap               && _nmap_ok=true ;;
-        *)           warn "Cannot auto-install nmap — install manually" ;;
-    esac
-    { cmd_exists nmap || $_nmap_ok; } && ok "nmap installed" || warn "nmap install failed — install manually"
-fi
+declare -A PKG_MAP_APT=(   [nmap]=nmap     [masscan]=masscan [nikto]=nikto [whatweb]=whatweb )
+declare -A PKG_MAP_PACMAN=([nmap]=nmap     [masscan]=masscan [nikto]=nikto [whatweb]=whatweb )
+declare -A PKG_MAP_DNF=(   [nmap]=nmap     [masscan]=masscan [nikto]=nikto )   # whatweb not in default repos
+declare -A PKG_MAP_BREW=(  [nmap]=nmap     [nikto]=nikto )                     # masscan/whatweb via brew cask
 
-# masscan (not available on Termux, BSD — skip gracefully)
-if ! is_termux && ! is_openbsd && ! is_netbsd; then
-    if cmd_exists masscan && ! $FORCE; then
-        ok "masscan already installed"
-    else
-        info "Installing masscan..."
-        _masscan_ok=false
-        case "$PKG_MGR" in
-            apt)         dry $SUDO apt-get install -y -qq masscan        && _masscan_ok=true ;;
-            pacman)      dry $SUDO pacman -S --noconfirm masscan          && _masscan_ok=true ;;
-            dnf|yum)
-                warn "masscan not in default repo — building from source..."
-                dry $SUDO ${PKG_MGR} install -y gcc git libpcap-devel \
-                    && dry git clone --depth 1 https://github.com/robertdavidgraham/masscan /tmp/masscan_src \
-                    && dry make -C /tmp/masscan_src -j"$(nproc)" \
-                    && dry $SUDO cp /tmp/masscan_src/bin/masscan /usr/local/bin/ \
-                    && dry rm -rf /tmp/masscan_src \
-                    && _masscan_ok=true \
-                    || warn "masscan build failed"
-                ;;
-            brew)        dry brew install masscan                         && _masscan_ok=true ;;
-            apk)         dry $SUDO apk add masscan                        && _masscan_ok=true ;;
-            xbps)        dry $SUDO xbps-install -y masscan                && _masscan_ok=true ;;
-            zypper)      dry $SUDO zypper install -y masscan               && _masscan_ok=true ;;
-            freebsd_pkg) dry $SUDO pkg install -y masscan                 && _masscan_ok=true ;;
-            nix)         dry nix-env -iA nixpkgs.masscan                  && _masscan_ok=true ;;
-            *)           warn "masscan not available on this platform" ;;
-        esac
-        { cmd_exists masscan || $_masscan_ok; } && ok "masscan installed" || warn "masscan unavailable — skipped"
+for tool in nmap masscan nikto whatweb; do
+    if cmd_exists "$tool"; then
+        ok "$tool already installed"
+        continue
     fi
-fi
+    info "Installing $tool..."
+    pkg_install "$tool" 2>/dev/null && ok "$tool installed" \
+        || warn "$tool not available in repos — skip"
+done
 
-# nikto
-if cmd_exists nikto && ! $FORCE; then
-    ok "nikto already installed"
-else
-    info "Installing nikto..."
-    _nikto_ok=false
-    case "$PKG_MGR" in
-        apt)         dry $SUDO apt-get install -y -qq nikto                      && _nikto_ok=true ;;
-        pacman)      dry $SUDO pacman -S --noconfirm nikto                       && _nikto_ok=true ;;
-        brew)        dry brew install nikto                                      && _nikto_ok=true ;;
-        dnf|yum)     dry $SUDO ${PKG_MGR} install -y nikto 2>/dev/null          && _nikto_ok=true \
-                         || { pip_install nikto                                  && _nikto_ok=true; } ;;
-        apk)         dry $SUDO apk add nikto                                     && _nikto_ok=true ;;
-        xbps)        dry $SUDO xbps-install -y nikto                             && _nikto_ok=true ;;
-        pkg)         dry pkg install -y nikto                                    && _nikto_ok=true ;;
-        freebsd_pkg) dry $SUDO pkg install -y nikto                              && _nikto_ok=true ;;
-        nix)         dry nix-env -iA nixpkgs.nikto                               && _nikto_ok=true ;;
-        *)           warn "nikto not available — skipped" ;;
-    esac
-    { cmd_exists nikto || $_nikto_ok; } && ok "nikto installed" || warn "nikto unavailable — skipped"
-fi
-
-# whatweb
-if cmd_exists whatweb && ! $FORCE; then
-    ok "whatweb already installed"
-else
-    info "Installing whatweb..."
-    _whatweb_ok=false
-    case "$PKG_MGR" in
-        apt)    dry $SUDO apt-get install -y -qq whatweb                     && _whatweb_ok=true ;;
-        pacman) dry $SUDO pacman -S --noconfirm whatweb                      && _whatweb_ok=true ;;
-        brew)   dry brew install whatweb                                     && _whatweb_ok=true ;;
-        apk)
-            # whatweb needs ruby
-            dry $SUDO apk add ruby && dry $SUDO gem install whatweb 2>/dev/null \
-                && ok "whatweb installed via gem" && _whatweb_ok=true \
-                || warn "whatweb unavailable on Alpine"
-            ;;
-        dnf|yum)
-            # whatweb not in default repos — install via gem
-            if cmd_exists gem; then
-                dry gem install whatweb && _whatweb_ok=true && ok "whatweb installed via gem"
-            else
-                warn "whatweb not in repos — install ruby + gem install whatweb"
-            fi
-            ;;
-        nix) dry nix-env -iA nixpkgs.whatweb                                && _whatweb_ok=true ;;
-        *)   warn "whatweb not available on this platform — skipped" ;;
-    esac
-    { cmd_exists whatweb || $_whatweb_ok; } && ok "whatweb installed" || true
-fi
-
-# ── SecLists wordlists ─────────────────────────────────────────────────────────
+# ── SecLists ──────────────────────────────────────────────────────────────────
 step "SecLists wordlists"
 
-SECLISTS_PATHS=(
-    "/usr/share/seclists"
-    "/usr/share/SecLists"
-    "$HOME/seclists"
-    "$HOME/SecLists"
-    "/opt/SecLists"
-    "/usr/local/share/seclists"
-)
+SECLISTS_PATHS=("/usr/share/seclists" "/usr/share/SecLists" "$HOME/SecLists" "/opt/SecLists")
 SECLISTS_FOUND=false
 for p in "${SECLISTS_PATHS[@]}"; do
     if [[ -d "$p" ]]; then
-        ok "SecLists found at $p"
-        SECLISTS_FOUND=true
-        break
+        ok "SecLists found at $p"; SECLISTS_FOUND=true; break
     fi
 done
 
 if ! $SECLISTS_FOUND; then
-    info "SecLists not found — installing..."
     if [[ "$PKG_MGR" == "apt" ]]; then
-        dry $SUDO apt-get install -y -qq seclists 2>/dev/null && ok "SecLists installed via apt" || {
-            warn "apt seclists failed — cloning from GitHub (~900 MB)..."
-            dry $SUDO git clone --depth 1 \
-                https://github.com/danielmiessler/SecLists.git \
-                /usr/share/seclists 2>/dev/null \
-                && ok "SecLists cloned to /usr/share/seclists" \
+        info "Installing SecLists via apt..."
+        pkg_install seclists 2>/dev/null && ok "SecLists installed" || {
+            warn "apt seclists failed — cloning from GitHub (~900MB)..."
+            sudo git clone --depth 1 https://github.com/danielmiessler/SecLists.git \
+                /usr/share/seclists 2>/dev/null && ok "SecLists cloned" \
                 || warn "SecLists install failed — built-in wordlist will be used"
         }
-    elif is_termux; then
-        # Termux: clone to home (no /usr/share)
-        dry git clone --depth 1 \
-            https://github.com/danielmiessler/SecLists.git \
-            "$HOME/seclists" 2>/dev/null \
-            && ok "SecLists cloned to ~/seclists" \
-            || warn "SecLists clone failed — built-in wordlist will be used"
-    elif [[ "$PKG_MGR" == "brew" ]]; then
-        { dry brew install seclists 2>/dev/null \
-            || dry git clone --depth 1 \
-               https://github.com/danielmiessler/SecLists.git \
-               "$HOME/seclists"; } \
-        && ok "SecLists installed" \
-        || warn "SecLists install failed — built-in wordlist will be used"
     else
-        warn "SecLists not auto-installed on this platform."
-        note "Install manually: git clone --depth 1 https://github.com/danielmiessler/SecLists ~/seclists"
+        warn "SecLists not found — install manually:"
+        echo "       git clone https://github.com/danielmiessler/SecLists ~/SecLists"
     fi
 fi
 
-# ── Go language ───────────────────────────────────────────────────────────────
+# ── Go tools ──────────────────────────────────────────────────────────────────
 if ! $SKIP_GO; then
     step "Go language"
 
-    if cmd_exists go && ! $FORCE; then
-        ok "Go $(go version | awk '{print $3}') already installed"
-    else
-        info "Installing Go..."
-        case "$PKG_MGR" in
-            apt)
-                dry $SUDO apt-get install -y -qq golang-go \
-                    && ok "Go installed via apt" || {
-                    warn "apt golang-go failed — install Go manually from: https://go.dev/dl/"
-                    SKIP_GO=true
-                }
-                ;;
-            pacman) dry $SUDO pacman -S --noconfirm go && ok "Go installed" ;;
-            dnf|yum) dry $SUDO ${PKG_MGR} install -y golang && ok "Go installed" ;;
-            brew)   dry brew install go && ok "Go installed" ;;
-            apk)    dry $SUDO apk add go && ok "Go installed" ;;
-            xbps)   dry $SUDO xbps-install -y go && ok "Go installed" ;;
-            zypper) dry $SUDO zypper install -y go && ok "Go installed" ;;
-            pkg)    dry pkg install -y golang && ok "Go installed" ;;   # Termux
-            freebsd_pkg) dry $SUDO pkg install -y go && ok "Go installed" ;;
-            emerge) dry $SUDO emerge -q dev-lang/go && ok "Go installed" ;;
-            nix)    dry nix-env -iA nixpkgs.go && ok "Go installed" ;;
-            eopkg)  dry $SUDO eopkg install -y golang && ok "Go installed" ;;
-            *)
-                err "Cannot auto-install Go. Get it from: https://go.dev/dl/"
+    if ! cmd_exists go; then
+        info "Go not found — installing..."
+        if [[ "$PKG_MGR" == "apt" ]]; then
+            pkg_install golang-go 2>/dev/null && ok "Go installed" || {
+                err "Go install failed. Get it from: https://go.dev/dl/"
                 warn "Skipping all Go tools"
                 SKIP_GO=true
-                ;;
-        esac
-        cmd_exists go || SKIP_GO=true
+            }
+        elif [[ "$PKG_MGR" == "brew" ]]; then
+            brew install go && ok "Go installed" || { warn "Go install failed"; SKIP_GO=true; }
+        elif [[ "$PKG_MGR" == "pacman" ]]; then
+            pkg_install go && ok "Go installed" || { warn "Go install failed"; SKIP_GO=true; }
+        elif [[ "$PKG_MGR" == "dnf" ]]; then
+            pkg_install golang && ok "Go installed" || { warn "Go install failed"; SKIP_GO=true; }
+        else
+            err "Go not found. Install from: https://go.dev/dl/"
+            SKIP_GO=true
+        fi
+    else
+        ok "Go $(go version | awk '{print $3}') found"
     fi
 
     if ! $SKIP_GO; then
-        export PATH="$PATH:$(go env GOPATH 2>/dev/null)/bin"
-        dry mkdir -p "$(go env GOPATH 2>/dev/null)/bin" 2>/dev/null || true
-
-        # Persist GOPATH/bin across shells
-        GOBIN="$(go env GOPATH 2>/dev/null)/bin"
-        for cfg_file in "${SHELL_CONFIGS[@]}"; do
-            if ! grep -q "$GOBIN" "$cfg_file" 2>/dev/null; then
-                if [[ "$cfg_file" == *"fish"* ]]; then
-                    $DRY_RUN || echo "fish_add_path $GOBIN" >> "$cfg_file" 2>/dev/null || true
-                else
-                    echo "export PATH=\"\$PATH:$GOBIN\"" >> "$cfg_file" 2>/dev/null || true
-                fi
-            fi
-        done
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        mkdir -p "$(go env GOPATH)/bin"
 
         step "Go recon tools"
+        install_go_tool "subfinder"   "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest"
+        install_go_tool "httpx"       "github.com/projectdiscovery/httpx/cmd/httpx@latest"
+        install_go_tool "nuclei"      "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
+        install_go_tool "ffuf"        "github.com/ffuf/ffuf/v2@latest"
+        install_go_tool "assetfinder" "github.com/tomnomnom/assetfinder@latest"
+        install_go_tool "gowitness"   "github.com/sensepost/gowitness@latest"
 
-        _go_install() {
-            local bin="$1" pkg="$2"
-            if cmd_exists "$bin" && ! $FORCE; then
-                ok "$bin already installed"
-            else
-                info "Installing $bin..."
-                dry go install "$pkg" 2>/dev/null \
-                    && ok "$bin installed" \
-                    || warn "$bin install failed — install manually: go install $pkg"
-            fi
-        }
-
-        _go_install subfinder   "github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest"
-        _go_install httpx       "github.com/projectdiscovery/httpx/cmd/httpx@latest"
-        _go_install nuclei      "github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
-        _go_install ffuf        "github.com/ffuf/ffuf/v2@latest"
-        _go_install assetfinder "github.com/tomnomnom/assetfinder@latest"
-        _go_install gowitness   "github.com/sensepost/gowitness@latest"
-        _go_install katana      "github.com/projectdiscovery/katana/cmd/katana@latest"
-
-        # amass (large — separate notice)
-        if cmd_exists amass && ! $FORCE; then
+        info "Installing amass (may take a minute)..."
+        if cmd_exists amass; then
             ok "amass already installed"
         else
-            info "Installing amass (this may take 1-3 minutes)..."
-            dry go install github.com/owasp-amass/amass/v4/...@master 2>/dev/null \
-                && ok "amass installed" \
-                || warn "amass install failed — install manually"
+            go install github.com/owasp-amass/amass/v4/...@master 2>&1 | tail -1 \
+                && ok "amass installed" || warn "amass install failed"
         fi
+
+        # Persist GOPATH/bin in all detected shell configs
+        GOBIN="$(go env GOPATH)/bin"
+        for cfg_file in "${SHELL_CONFIGS[@]}"; do
+            if ! grep -q "$(go env GOPATH)/bin" "$cfg_file" 2>/dev/null; then
+                echo "export PATH=\"\$PATH:$GOBIN\"" >> "$cfg_file"
+                ok "GOPATH/bin added to PATH in $cfg_file"
+            fi
+        done
     fi
 fi
 
@@ -897,126 +441,67 @@ fi
 if ! $SKIP_RUST; then
     step "RustScan (primary port scanner)"
 
-    _rs_via_pkg=false
-    _rs_deb_ok=false
-    ARCH="$(uname -m)"
-
-    if cmd_exists rustscan && ! $FORCE; then
+    if cmd_exists rustscan; then
         ok "RustScan already installed"
+    elif cmd_exists cargo; then
+        info "Installing RustScan via cargo..."
+        cargo install rustscan && ok "RustScan installed" || warn "cargo install failed"
     else
-        case "$PKG_MGR" in
-            brew)        dry brew install rustscan && _rs_via_pkg=true ;;
-            pacman)      dry $SUDO pacman -S --noconfirm rustscan 2>/dev/null && _rs_via_pkg=true ;;
-            pkg)         dry pkg install -y rustscan 2>/dev/null && _rs_via_pkg=true ;;  # Termux
-            freebsd_pkg) dry $SUDO pkg install -y rustscan 2>/dev/null && _rs_via_pkg=true ;;
-            nix)         dry nix-env -iA nixpkgs.rustscan 2>/dev/null && _rs_via_pkg=true ;;
+        info "Rust not found — trying pre-built binary..."
+        ARCH=$(uname -m)
+        RS_DEB=""
+        case "$ARCH" in
+            x86_64)  RS_DEB="rustscan_amd64.deb" ;;
+            aarch64) RS_DEB="rustscan_arm64.deb"  ;;
         esac
 
-        if ! $_rs_via_pkg; then
-            # Try pre-built .deb on apt systems
-            _rs_deb_ok=false
-            if [[ "$PKG_MGR" == "apt" ]]; then
-                RS_DEB=""
-                case "$ARCH" in
-                    x86_64)  RS_DEB="rustscan_amd64.deb" ;;
-                    aarch64) RS_DEB="rustscan_arm64.deb" ;;
-                    armv7l)  RS_DEB="rustscan_armhf.deb" ;;
-                esac
-                if [[ -n "$RS_DEB" ]]; then
-                    TMP=$(mktemp /tmp/rustscan_XXXXXX.deb)
-                    if dry curl -fsSL \
-                        "https://github.com/RustScan/RustScan/releases/latest/download/$RS_DEB" \
-                        -o "$TMP" 2>/dev/null \
-                    && dry $SUDO dpkg -i "$TMP"; then
-                        ok "RustScan installed from .deb"
-                        _rs_deb_ok=true
-                    else
-                        warn "Pre-built .deb failed"
-                    fi
-                    rm -f "$TMP"
-                fi
-            fi
-
-            # Cargo fallback — only if .deb didn't work and not dry-run installed
-            if ! $_rs_deb_ok && ! cmd_exists rustscan; then
-                if ! cmd_exists cargo; then
-                    info "Rust toolchain not found — installing via rustup..."
-                    if $DRY_RUN; then
-                        echo -e "${MAGENTA}  [DRY-RUN]${NC}  curl https://sh.rustup.rs | sh"
-                    else
-                        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-                            | sh -s -- -y --no-modify-path 2>/dev/null \
-                        && export PATH="$HOME/.cargo/bin:$PATH" \
-                        && ok "Rust toolchain installed" \
-                        || warn "Rust install failed"
-                    fi
-                fi
-
-                if cmd_exists cargo; then
-                    info "Building RustScan from source (takes a few minutes)..."
-                    dry cargo install rustscan && ok "RustScan installed via cargo" \
-                        || warn "cargo install rustscan failed"
-                    # Persist cargo bin
-                    for cfg_file in "${SHELL_CONFIGS[@]}"; do
-                        if ! grep -q '\.cargo/bin' "$cfg_file" 2>/dev/null; then
-                            echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> "$cfg_file" 2>/dev/null || true
-                        fi
-                    done
-                else
-                    warn "Cannot install RustScan — Rust toolchain unavailable"
-                    note "Manual install: https://github.com/RustScan/RustScan"
-                fi
-            fi
+        if [[ -n "$RS_DEB" && "$PKG_MGR" == "apt" ]]; then
+            TMP=$(mktemp /tmp/rustscan_XXXXXX.deb)
+            curl -fsSL \
+                "https://github.com/RustScan/RustScan/releases/latest/download/$RS_DEB" \
+                -o "$TMP" 2>/dev/null \
+            && sudo dpkg -i "$TMP" && ok "RustScan installed from .deb" \
+            || warn "RustScan .deb install failed"
+            rm -f "$TMP"
+        elif [[ "$PKG_MGR" == "brew" ]]; then
+            brew install rustscan && ok "RustScan installed" || warn "brew install failed"
+        else
+            warn "Cannot auto-install RustScan on this OS"
+            echo "  Install Rust: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+            echo "  Then: cargo install rustscan"
         fi
-
-        { cmd_exists rustscan || $_rs_deb_ok || $_rs_via_pkg; } && ok "RustScan installed" || warn "RustScan unavailable on this platform"
     fi
 fi
 
 # ── feroxbuster ───────────────────────────────────────────────────────────────
 step "feroxbuster (directory scanner)"
 
-if cmd_exists feroxbuster && ! $FORCE; then
+if cmd_exists feroxbuster; then
     ok "feroxbuster already installed"
+elif [[ "$PKG_MGR" == "apt" ]]; then
+    pkg_install feroxbuster 2>/dev/null && ok "feroxbuster installed" || {
+        info "apt failed — using curl installer..."
+        curl -sL https://raw.githubusercontent.com/epi052/feroxbuster/main/install-nix.sh \
+            | bash -s "$HOME/.local/bin" 2>/dev/null \
+            && ok "feroxbuster installed to ~/.local/bin" \
+            || warn "feroxbuster install failed — ffuf/dirsearch will be used"
+    }
+elif [[ "$PKG_MGR" == "brew" ]]; then
+    brew install feroxbuster && ok "feroxbuster installed" || warn "feroxbuster install failed"
 else
-    info "Installing feroxbuster..."
-    case "$PKG_MGR" in
-        apt)
-            dry $SUDO apt-get install -y -qq feroxbuster 2>/dev/null && ok "feroxbuster installed" || {
-                info "apt failed — using curl installer..."
-                dry curl -sL \
-                    https://raw.githubusercontent.com/epi052/feroxbuster/main/install-nix.sh \
-                    | bash -s "$HOME/.local/bin" 2>/dev/null \
-                    && ok "feroxbuster installed to ~/.local/bin" \
-                    || warn "feroxbuster install failed — ffuf/dirsearch fallback will be used"
-            }
-            ;;
-        brew)    dry brew install feroxbuster && ok "feroxbuster installed" ;;
-        pacman)  dry $SUDO pacman -S --noconfirm feroxbuster && ok "feroxbuster installed" ;;
-        nix)     dry nix-env -iA nixpkgs.feroxbuster && ok "feroxbuster installed" ;;
-        pkg)
-            # Termux: no pre-built — skip, use ffuf fallback
-            warn "feroxbuster not available in Termux — ffuf/dirsearch will be used"
-            ;;
-        *)
-            # Try cargo
-            if cmd_exists cargo; then
-                dry cargo install feroxbuster && ok "feroxbuster installed via cargo" \
-                    || warn "feroxbuster unavailable — ffuf/dirsearch fallback will be used"
-            else
-                warn "feroxbuster unavailable on this platform — ffuf/dirsearch fallback will be used"
-            fi
-            ;;
-    esac
+    warn "feroxbuster not available — ffuf/dirsearch will be used as fallback"
 fi
 
-# ── dirsearch (pip — universal) ───────────────────────────────────────────────
+# ── dirsearch ─────────────────────────────────────────────────────────────────
 step "dirsearch (directory scanner fallback)"
 
-if cmd_exists dirsearch && ! $FORCE; then
+if cmd_exists dirsearch; then
     ok "dirsearch already installed"
 else
-    pip_install dirsearch && ok "dirsearch installed" || warn "dirsearch install failed"
+    $PIP install dirsearch --break-system-packages -q 2>/dev/null \
+        || $PIP install dirsearch -q 2>/dev/null \
+        && ok "dirsearch installed" \
+        || warn "dirsearch install failed"
 fi
 
 # ── Nuclei templates ──────────────────────────────────────────────────────────
@@ -1024,50 +509,35 @@ step "Nuclei templates"
 
 if cmd_exists nuclei; then
     info "Updating nuclei templates..."
-    dry nuclei -update-templates -silent 2>/dev/null \
+    nuclei -update-templates -silent 2>/dev/null \
         && ok "Nuclei templates updated" \
-        || ok "Templates will auto-download on first run"
+        || ok "Templates will download on first run"
 else
-    warn "nuclei not installed — vulnerability scanning will be skipped"
-    note "Install manually: go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest"
+    warn "nuclei not installed — vuln scanning will be skipped"
 fi
 
-# ── Termux extras: aquatone alternative ───────────────────────────────────────
-if is_termux; then
-    step "Termux extras"
-    # gowitness is the screenshot tool and is installed via go above
-    # aquatone has no arm binary — skip it
-    note "aquatone not available on Android/Termux — gowitness will be used for screenshots"
-    # Ensure termux storage is set up for reports
-    if [[ ! -d "$HOME/storage" ]]; then
-        warn "Run 'termux-setup-storage' once to enable file access from Android gallery"
-    fi
-fi
-
-# ── Final tool status ─────────────────────────────────────────────────────────
+# ── Final tool check ──────────────────────────────────────────────────────────
 step "Final tool check"
 echo ""
-$DRY_RUN || "$PYTHON" "$INSTALL_DIR/reconninja.py" --check-tools
+"$PYTHON" "$INSTALL_DIR/reconninja.py" --check-tools
 echo ""
 
-# ── Done banner ───────────────────────────────────────────────────────────────
+# ── Done ──────────────────────────────────────────────────────────────────────
 echo -e "${GREEN}${BOLD}"
-echo "  ╔═══════════════════════════════════════════════════════════════╗"
-echo "  ║                                                               ║"
-printf "  ║   ✔  ReconNinja v%-6s installed to ~/.reconninja/          ║\n" "${RN_VERSION}"
-echo "  ║   ✔  'ReconNinja' alias created in all detected shell files   ║"
-echo "  ║   ✔  Wrapper script at ~/.local/bin/ReconNinja                ║"
-echo "  ║                                                               ║"
-echo "  ║   Supported platforms: Kali · Ubuntu · Debian · Parrot       ║"
-echo "  ║     Arch · Manjaro · Fedora · CentOS · Rocky · AlmaLinux     ║"
-echo "  ║     openSUSE · Alpine · Void · Gentoo · NixOS · Solus        ║"
-echo "  ║     macOS · FreeBSD · OpenBSD · NetBSD · WSL2 · Termux       ║"
-echo "  ║                                                               ║"
-echo "  ║   Docs: https://github.com/YouTubers777/ReconNinja            ║"
-echo "  ╚═══════════════════════════════════════════════════════════════╝"
+echo "  ╔═════════════════════════════════════════════════════════════╗"
+echo "  ║                                                             ║"
+echo "  ║   ✔  ReconNinja v3.3 installed to ~/.reconninja/            ║"
+echo "  ║   ✔  Alias 'ReconNinja' created in your shell config        ║"
+echo "  ║   ✔  Wrapper script at ~/.local/bin/ReconNinja              ║"
+echo "  ║                                                             ║"
+echo "  ║   To start using RIGHT NOW (without restarting terminal):   ║"
+echo "  ║                                                             ║"
+echo "  ║     source ~/.bashrc   OR   source ~/.zshrc                 ║"
+echo "  ║       OR source your fish config if you use fish or OTHER   ║"
+echo "  ║   Then just type: ReconNinja                                ║"
+echo "  ║                                                             ║"
+echo "  ║   Docs: https://github.com/ExploitCraft/ReconNinja          ║"
+echo "  ╚═════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
-
-_print_activate_hint
-
-echo -e "${RED}  ⚠  Only scan systems you own or have explicit written permission to test.${NC}"
+echo -e "${RED}  ⚠  Only scan systems you own or have written permission to test.${NC}"
 echo ""

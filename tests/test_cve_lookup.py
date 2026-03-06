@@ -1,11 +1,11 @@
 """
-tests/test_cve_lookup.py — ReconNinja v3.2.1
+tests/test_cve_lookup.py — ReconNinja v3.3.0
 Tests for core/cve_lookup.py — pure logic only, no real HTTP calls.
 
-v3.2.1 additions:
+v3.3.0 additions:
   - TestRateLimit: verifies delay >= 6.0s (NVD limit: 5 req/30s)
   - TestLookupCvesForHostResult: verifies correct function name exists
-    (v3.2.0 orchestrator referenced non-existent lookup_cves_for_hosts)
+    (v3.3.0 orchestrator referenced non-existent lookup_cves_for_hosts)
 """
 import pytest
 import sys
@@ -116,13 +116,13 @@ class TestBuildSearchTerm:
 
 
 # ═══════════════════════════════════════════════
-# Rate Limit — v3.2.1 fix
+# Rate Limit — v3.3.0 fix
 # ═══════════════════════════════════════════════
 class TestRateLimit:
     """
     NVD free tier: 5 requests per 30 seconds = minimum 6.0s between requests.
-    v3.2.0 used delay=0.7s (42 req/30s) — caused 403 after 5th request.
-    v3.2.1 fix: delay=6.5s with buffer.
+    v3.3.0 used delay=0.7s (42 req/30s) — caused 403 after 5th request.
+    v3.3.0 fix: delay=6.5s with buffer.
     """
     def test_default_delay_at_least_6_seconds(self):
         import inspect
@@ -289,14 +289,14 @@ class TestLookupCvesForPorts:
 # ═══════════════════════════════════════════════
 class TestLookupCvesForHostResult:
     """
-    v3.2.1: orchestrator previously imported non-existent lookup_cves_for_hosts.
+    v3.3.0: orchestrator previously imported non-existent lookup_cves_for_hosts.
     These tests verify lookup_cves_for_host_result exists and works correctly.
     """
     def setup_method(self):
         _CACHE.clear()
 
     def test_function_exists_and_is_callable(self):
-        """Regression: v3.2.0 orchestrator called lookup_cves_for_hosts (wrong name)."""
+        """Regression: v3.3.0 orchestrator called lookup_cves_for_hosts (wrong name)."""
         from core.cve_lookup import lookup_cves_for_host_result
         assert callable(lookup_cves_for_host_result)
 
