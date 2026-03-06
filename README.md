@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.10+-FFD43B?style=for-the-badge&logo=python&logoColor=black)](https://python.org)
 [![Version](https://img.shields.io/badge/Version-3.3.0-00d4ff?style=for-the-badge&logo=buffer&logoColor=white)](https://github.com/ExploitCraft/ReconNinja/releases)
-[![Tests](https://img.shields.io/badge/Tests-262%20passing-22c55e?style=for-the-badge&logo=checkmarx&logoColor=white)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-533%20passing-22c55e?style=for-the-badge&logo=checkmarx&logoColor=white)](tests/)
 [![License](https://img.shields.io/badge/License-MIT-7c3aed?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/ExploitCraft/ReconNinja?style=for-the-badge&logo=github&color=ff6b6b&logoColor=white)](https://github.com/ExploitCraft/ReconNinja/stargazers)
 [![CI](https://img.shields.io/github/actions/workflow/status/ExploitCraft/ReconNinja/python-package-conda.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/ExploitCraft/ReconNinja/actions)
@@ -506,12 +506,14 @@ python3 -m unittest discover tests/
 
 | File | Tests | Covers |
 |---|---|---|
-| `tests/test_models.py` | 105 | All dataclasses, `ScanConfig` including all v3.3.0 fields, constants |
-| `tests/test_resume.py` | 83 | `save_state`, `load_state`, all v3.3.0 field round-trips, backward-compat with old state files |
-| `tests/test_cve_lookup.py` | 47 | `CVEResult`, NVD API parsing, rate limit enforcement (≥6.0s), function name regressions |
-| `tests/test_ai_analysis.py` | — | All 4 AI providers, prompt building, JSON parsing, error handling |
-| `tests/test_report_html.py` | — | HTML structure, badge generation, full/empty result rendering |
-| **Total** | **262** | **0 failures** |
+| `tests/test_models.py` | 166 | All dataclasses, `ScanConfig` including all v3.3.0 fields, constants |
+| `tests/test_resume.py` | 57 | `save_state`, `load_state`, all v3.3.0 field round-trips, backward-compat with old state files |
+| `tests/test_cve_lookup.py` | 39 | `CVEResult`, NVD API parsing, rate limit enforcement (≥6.0s), function name regressions |
+| `tests/test_ports.py` | 84 | Async TCP scanner, banner parsing, port hints, service guessing |
+| `tests/test_ai_analysis.py` | 70 | All 4 AI providers, prompt building, JSON parsing, key resolution, error handling |
+| `tests/test_report_html.py` | 54 | HTML structure, badge generation, severity colors, full/empty result rendering |
+| `tests/test_orchestrator.py` | 63 | Phase skip logic, resume scenarios, CVE/AI wiring, save_state checkpoints, source regression |
+| **Total** | **533** | **0 failures** |
 
 ### Test Policy
 
@@ -579,8 +581,8 @@ ReconNinja/
 │
 └── tests/
     ├── conftest.py         # Shared fixtures                         ← updated v3.3.0
-    ├── test_models.py      # 105 tests                               ← updated v3.3.0
-    ├── test_resume.py      # 83 tests                                ← updated v3.3.0
+    ├── test_models.py      # 166 tests                               ← updated v3.3.0
+    ├── test_resume.py      # 57 tests                                ← updated v3.3.0
     ├── test_cve_lookup.py  # 47 tests                                ← updated v3.3.0
     ├── test_ai_analysis.py # AI provider tests
     ├── test_ports.py       # Port scanning tests
@@ -602,7 +604,7 @@ ReconNinja/
 - ✅ Phase 11 calls `run_ai_analysis()` from `core/ai_analysis.py` — `--ai` uses real LLM
 - ✅ `print_update_status()` wrapped in `try/except` — network error no longer crashes startup
 - ✅ `_dict_to_config()` uses `.get()` not `.pop()` — no dict mutation on state load
-- ✅ **262 tests, 0 failures** — test suite updated for all 12 fixes
+- ✅ **533 tests, 0 failures** — test suite updated for all 12 fixes
 
 ### v3.3.0 — Bug Fix Release
 - ✅ `core/ai_analysis.py` added — real LLM integration (Groq/Ollama/Gemini/OpenAI)
