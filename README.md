@@ -31,9 +31,9 @@ pip install git+https://github.com/ExploitCraft/ReconNinja.git
 # From PIP
 pip install reconnninja
 
-# From source
+# From install file (RECOMMENDED)
 git clone https://github.com/ExploitCraft/ReconNinja.git
-cd ReconNinja && pip install -e .
+cd ReconNinja && chmod +x install.sh && ./install.sh
 ```
 
 ---
@@ -42,19 +42,19 @@ cd ReconNinja && pip install -e .
 
 ```bash
 # Interactive mode — guided setup
-reconnja
+ReconnNinja
 
 # Standard scan
-reconnja -t example.com
+ReconnNinja -t example.com
 
 # Full 14-phase pipeline
-reconnja -t example.com --profile full_suite -y
+ReconnNinja -t example.com --profile full_suite -y
 
 # v4: WHOIS + Wayback + SSL — no keys needed
-reconnja -t example.com --whois --wayback --ssl -y
+ReconnNinja -t example.com --whois --wayback --ssl -y
 
 # v4: Full intelligence
-reconnja -t example.com --profile full_suite \
+ReconnNinja -t example.com --profile full_suite \
   --whois --wayback --ssl \
   --shodan --shodan-key YOUR_KEY \
   --vt --vt-key YOUR_KEY \
@@ -252,7 +252,8 @@ Optional tools: `nmap`, `rustscan`, `masscan`, `amass`, `subfinder`, `httpx`, `f
 ```bash
 git clone https://github.com/ExploitCraft/ReconNinja.git
 cd ReconNinja
-pip install -e ".[full]"
+chmod +x install.sh
+./install.sh
 pytest                                       # run all 600+ tests
 pytest tests/test_v4_modules.py -v          # v4 module tests
 pytest tests/test_orchestrator.py -v        # orchestrator tests
