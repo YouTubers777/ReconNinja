@@ -6,11 +6,14 @@
 
 [![Version](https://img.shields.io/badge/version-4.0.0-6366f1?style=flat-square)](https://github.com/ExploitCraft/ReconNinja/releases)
 [![Python](https://img.shields.io/badge/python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-600+-22c55e?style=flat-square)](tests/)
+[![Tests](https://img.shields.io/badge/tests-597-22c55e?style=flat-square)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-f4f4f5?style=flat-square)](LICENSE)
 [![Author](https://img.shields.io/badge/author-ExploitCraft-a78bfa?style=flat-square)](https://github.com/ExploitCraft)
+[![Docs](https://img.shields.io/badge/docs-doc.emonpersonal.xyz-00e5ff?style=flat-square)](http://doc.emonpersonal.xyz/)
 
 > ⚠ Use only against targets you own or have explicit written permission to test.
+
+📄 **Documentation available at [doc.emonpersonal.xyz](http://doc.emonpersonal.xyz/)**
 
 </div>
 
@@ -29,7 +32,7 @@ ReconNinja automates every phase of a reconnaissance engagement into a single co
 pip install git+https://github.com/ExploitCraft/ReconNinja.git
 
 # From PIP
-pip install reconnninja
+pip install reconninja
 
 # From install file (RECOMMENDED)
 git clone https://github.com/ExploitCraft/ReconNinja.git
@@ -42,19 +45,19 @@ cd ReconNinja && chmod +x install.sh && ./install.sh
 
 ```bash
 # Interactive mode — guided setup
-ReconnNinja
+reconninja
 
 # Standard scan
-ReconnNinja -t example.com
+reconninja -t example.com
 
 # Full 14-phase pipeline
-ReconnNinja -t example.com --profile full_suite -y
+reconninja -t example.com --profile full_suite -y
 
 # v4: WHOIS + Wayback + SSL — no keys needed
-ReconnNinja -t example.com --whois --wayback --ssl -y
+reconninja -t example.com --whois --wayback --ssl -y
 
 # v4: Full intelligence
-ReconnNinja -t example.com --profile full_suite \
+reconninja -t example.com --profile full_suite \
   --whois --wayback --ssl \
   --shodan --shodan-key YOUR_KEY \
   --vt --vt-key YOUR_KEY \
@@ -119,12 +122,6 @@ Phase 14  AI Analysis        Groq / Ollama / Gemini / OpenAI threat summary
 --exclude passive,vuln    # skip specific phases
 --timeout 60              # global per-operation timeout
 --rate-limit 1.0          # seconds between requests
-```
-
-**pip install now works:**
-
-```bash
-pip install git+https://github.com/ExploitCraft/ReconNinja.git
 ```
 
 ---
@@ -216,7 +213,7 @@ reports/
 
 ```bash
 # Scan crashes after Phase 8 — resume from last checkpoint
-reconnja --resume reports/example.com_20260307_120000/state.json
+reconninja --resume reports/example.com_20260307_120000/state.json
 ```
 
 All v4 results (WHOIS, Wayback, SSL, VT, Shodan) are preserved in `state.json` and restored on resume.
@@ -240,7 +237,7 @@ def run(target, out_folder, result, cfg):
 Only `rich` is required. All external tools are optional — ReconNinja detects what's available and falls back gracefully.
 
 ```bash
-reconnja --check-tools    # show availability
+reconninja --check-tools    # show availability
 ```
 
 Optional tools: `nmap`, `rustscan`, `masscan`, `amass`, `subfinder`, `httpx`, `feroxbuster`, `ffuf`, `dirsearch`, `whatweb`, `nikto`, `nuclei`, `aquatone`, `gowitness`
@@ -254,7 +251,7 @@ git clone https://github.com/ExploitCraft/ReconNinja.git
 cd ReconNinja
 chmod +x install.sh
 ./install.sh
-pytest                                       # run all 600+ tests
+pytest                                       # run all 597 tests
 pytest tests/test_v4_modules.py -v          # v4 module tests
 pytest tests/test_orchestrator.py -v        # orchestrator tests
 ```
@@ -270,5 +267,7 @@ MIT — see [LICENSE](LICENSE)
 <div align="center">
 
 **[ExploitCraft](https://github.com/ExploitCraft)** · Bangladesh · Building tools that matter
+
+📄 Full documentation at **[doc.emonpersonal.xyz](http://doc.emonpersonal.xyz/)**
 
 </div>
