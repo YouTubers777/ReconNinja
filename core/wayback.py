@@ -61,7 +61,7 @@ def wayback_lookup(domain: str, limit: int = 500) -> dict:
         return {}
 
     if not data or len(data) < 2:
-        return {"domain": domain, "urls": [], "interesting": [], "total": 0}
+        return {}
 
     # Skip header row
     rows    = data[1:]

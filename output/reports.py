@@ -1,5 +1,5 @@
 """
-ReconNinja v3 — Report Generation
+ReconNinja v4.0.0 — Report Generation
 Produces JSON, HTML (dark UI dashboard), and Markdown reports.
 """
 
@@ -12,7 +12,7 @@ from pathlib import Path
 from utils.models import ReconResult, VulnFinding, HostResult
 
 APP_NAME = "ReconNinja"
-VERSION  = "3.0.0"
+VERSION  = "4.0.0"
 
 
 # ─── JSON ─────────────────────────────────────────────────────────────────────
@@ -48,12 +48,12 @@ def generate_json_report(result: ReconResult, path: Path) -> None:
             "phases_completed": result.phases_completed,
         },
         "summary": {
-            "subdomains": len(result.subdomains),
-            "hosts":      len(result.hosts),
-            "open_ports": sum(len(h.open_ports) for h in result.hosts),
-            "web_services": len(result.web_findings),
+            "subdomains":    len(result.subdomains),
+            "hosts":         len(result.hosts),
+            "open_ports":    sum(len(h.open_ports) for h in result.hosts),
+            "web_services":  len(result.web_findings),
             "vuln_findings": len(result.nuclei_findings),
-            "dir_findings": len(result.dir_findings),
+            "dir_findings":  len(result.dir_findings),
         },
         "subdomains":       result.subdomains,
         "hosts":            [_host(h) for h in result.hosts],
@@ -70,6 +70,12 @@ def generate_json_report(result: ReconResult, path: Path) -> None:
         "nuclei_findings":  [_vuln(v) for v in result.nuclei_findings],
         "ai_analysis":      result.ai_analysis,
         "errors":           result.errors,
+        # v4.0.0 intelligence data
+        "shodan_results":   result.shodan_results,
+        "vt_results":       result.vt_results,
+        "whois_results":    result.whois_results,
+        "wayback_results":  result.wayback_results,
+        "ssl_results":      result.ssl_results,
     }
 
     with path.open("w", encoding="utf-8") as f:
@@ -144,6 +150,112 @@ def generate_html_report(result: ReconResult, path: Path) -> None:
     crit_ports = sum(1 for h in result.hosts for p in h.open_ports if p.severity == "critical")
     crit_vulns = sum(1 for v in result.nuclei_findings if v.severity in ("critical", "high"))
 
+    # v4 — WHOIS section
+    whois_section = ""
+    if result.whois_results:
+        w = result.whois_results[0]
+        whois_section = f"""
+        <section>
+          <h2>🌐 WHOIS — {esc(w.get('target', ''))}</h2>
+          <table>
+            <tr><th>Field</th><th>Value</th></tr>
+            <tr><td>Registrar</td><td>{esc(w.get('registrar','—'))}</td></tr>
+            <tr><td>Registered</td><td>{esc(w.get('registered','—'))}</td></tr>
+            <tr><td>Expires</td><td>{esc(w.get('expires','—'))}</td></tr>
+            <tr><td>Updated</td><td>{esc(w.get('updated','—'))}</td></tr>
+            <tr><td>Registrant</td><td>{esc(w.get('registrant','—'))}</td></tr>
+            <tr><td>Country</td><td>{esc(w.get('country','—'))}</td></tr>
+            <tr><td>Name Servers</td><td>{esc(', '.join(w.get('name_servers',[])))}</td></tr>
+            <tr><td>Emails</td><td>{esc(', '.join(w.get('emails',[])))}</td></tr>
+          </table>
+        </section>"""
+
+    # v4 — Wayback section
+    wayback_section = ""
+    if result.wayback_results:
+        wb = result.wayback_results[0]
+        interesting = wb.get("interesting", [])[:20]
+        wb_rows = "".join(
+            f"<tr><td><a href='{esc(i['url'])}' target='_blank' style='color:#00d4ff'>{esc(i['url'])}</a></td>"
+            f"<td>{esc(i['reason'])}</td><td>{esc(i['timestamp'])}</td></tr>"
+            for i in interesting
+        )
+        wayback_section = f"""
+        <section>
+          <h2>📜 Wayback Machine — {esc(wb.get('domain', ''))} ({wb.get('total', 0)} URLs found)</h2>
+          {"<table><thead><tr><th>URL</th><th>Reason</th><th>Timestamp</th></tr></thead><tbody>" + wb_rows + "</tbody></table>" if wb_rows else "<p style='color:var(--dim)'>No interesting URLs found.</p>"}
+        </section>"""
+
+    # v4 — SSL section
+    ssl_section = ""
+    if result.ssl_results:
+        ssl_r = result.ssl_results[0]
+        ssl_rows = ""
+        for cert in ssl_r.get("certs", []):
+            exp_color = "#ff4444" if cert.get("expired") else "#ffd700" if cert.get("days_left", 999) < 30 else "#2ecc71"
+            ssl_rows += f"""
+            <tr>
+              <td>{cert.get('port','—')}</td>
+              <td>{esc(cert.get('version','—'))}</td>
+              <td>{esc(cert.get('cipher','—'))}</td>
+              <td>{esc(cert.get('subject',{}).get('commonName','—'))}</td>
+              <td style="color:{exp_color}">{cert.get('not_after','—')} ({cert.get('days_left','?')}d)</td>
+              <td>{"⚠ SELF-SIGNED" if cert.get("self_signed") else "✔"}</td>
+              <td class="small">{esc(', '.join(cert.get('issues',[])))}</td>
+            </tr>"""
+        issue_rows = "".join(
+            f"<tr><td><span class='badge' style='background:{{'critical':'#ff4444','high':'#ff8c00','medium':'#ffd700'}.get(i.get('severity','info'),'#555')}'>{esc(i.get('severity','').upper())}</span></td><td>{esc(i.get('detail',''))}</td></tr>"
+            for i in ssl_r.get("issues", [])
+        )
+        ssl_section = f"""
+        <section>
+          <h2>🔒 SSL/TLS Analysis — {esc(ssl_r.get('host', ''))}</h2>
+          {"<table><thead><tr><th>Port</th><th>Protocol</th><th>Cipher</th><th>CN</th><th>Expiry</th><th>Self-Signed</th><th>Issues</th></tr></thead><tbody>" + ssl_rows + "</tbody></table>" if ssl_rows else "<p style='color:var(--dim)'>No SSL data.</p>"}
+          {"<h3 style='margin-top:1rem;color:var(--warn)'>Issues</h3><table><thead><tr><th>Severity</th><th>Detail</th></tr></thead><tbody>" + issue_rows + "</tbody></table>" if issue_rows else ""}
+        </section>"""
+
+    # v4 — VirusTotal section
+    vt_section = ""
+    if result.vt_results:
+        vt_r = result.vt_results[0]
+        mal  = vt_r.get("malicious", 0)
+        vt_color = "#ff4444" if mal > 0 else "#2ecc71"
+        vt_section = f"""
+        <section>
+          <h2>🦠 VirusTotal — {esc(vt_r.get('domain', vt_r.get('ip', '')))}</h2>
+          <table>
+            <tr><th>Field</th><th>Value</th></tr>
+            <tr><td>Malicious</td><td style="color:{vt_color}"><strong>{mal}</strong></td></tr>
+            <tr><td>Suspicious</td><td>{vt_r.get('suspicious',0)}</td></tr>
+            <tr><td>Reputation</td><td>{vt_r.get('reputation','—')}</td></tr>
+            <tr><td>Registrar</td><td>{esc(vt_r.get('registrar','—'))}</td></tr>
+            <tr><td>Tags</td><td>{esc(', '.join(vt_r.get('tags',[])))}</td></tr>
+          </table>
+        </section>"""
+
+    # v4 — Shodan section
+    shodan_section = ""
+    if result.shodan_results:
+        sh_rows = ""
+        for sh in result.shodan_results[:10]:
+            sh_rows += f"""
+            <tr>
+              <td><code>{esc(sh.get('ip',''))}</code></td>
+              <td>{esc(sh.get('org','—'))}</td>
+              <td>{esc(sh.get('country','—'))}</td>
+              <td>{esc(', '.join(str(p) for p in sh.get('open_ports',[])[:10]))}</td>
+              <td style="color:#ff4444">{esc(', '.join(sh.get('vulns',[])[:5]))}</td>
+              <td>{esc(', '.join(sh.get('tags',[])))}</td>
+            </tr>"""
+        shodan_section = f"""
+        <section>
+          <h2>🔭 Shodan Intelligence ({len(result.shodan_results)} host(s))</h2>
+          <table>
+            <thead><tr><th>IP</th><th>Org</th><th>Country</th><th>Open Ports</th><th>CVEs</th><th>Tags</th></tr></thead>
+            <tbody>{sh_rows}</tbody>
+          </table>
+        </section>"""
+
     ai_section = ""
     if result.ai_analysis:
         ai_section = f"""
@@ -157,7 +269,7 @@ def generate_html_report(result: ReconResult, path: Path) -> None:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ReconNinja v3 — {esc(result.target)}</title>
+<title>ReconNinja v4 — {esc(result.target)}</title>
 <style>
 :root {{
   --bg:#0a0a0f;--surface:#13131f;--surface2:#1a1a2e;
@@ -168,23 +280,15 @@ def generate_html_report(result: ReconResult, path: Path) -> None:
 *{{box-sizing:border-box;margin:0;padding:0}}
 body{{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,monospace;line-height:1.6}}
 a{{color:var(--accent)}}
-
-/* Header */
 header{{
   background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);
   padding:2.5rem 2rem;text-align:center;
   border-bottom:1px solid var(--accent);
   position:relative;overflow:hidden;
 }}
-header::before{{
-  content:'';position:absolute;inset:0;
-  background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2300d4ff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}}
 header h1{{font-size:3rem;color:var(--accent);letter-spacing:6px;text-shadow:0 0 30px rgba(0,212,255,.4)}}
 header .ninja{{font-size:1.2rem;color:var(--accent2);letter-spacing:2px;margin-top:.3rem}}
 header .meta{{color:var(--dim);margin-top:.8rem;font-size:.9rem}}
-
-/* Stats */
 .stats{{display:flex;gap:1rem;padding:1.5rem 2rem;background:var(--surface);flex-wrap:wrap;border-bottom:1px solid var(--border)}}
 .stat{{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1rem 1.5rem;flex:1;min-width:130px;text-align:center;transition:border-color .2s}}
 .stat:hover{{border-color:var(--accent)}}
@@ -192,32 +296,20 @@ header .meta{{color:var(--dim);margin-top:.8rem;font-size:.9rem}}
 .stat .val.danger{{color:var(--danger)}}
 .stat .val.warn{{color:var(--warn)}}
 .stat .lbl{{font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-top:.2rem}}
-
-/* Main */
 main{{padding:2rem;max-width:1600px;margin:auto}}
 section{{margin-bottom:2.5rem;background:var(--surface);border-radius:12px;padding:1.5rem;border:1px solid var(--border)}}
 h2{{color:var(--accent);font-size:1.1rem;margin-bottom:1rem;letter-spacing:1px;text-transform:uppercase}}
-
-/* Tables */
+h3{{color:var(--accent2);font-size:.95rem;margin-bottom:.7rem;letter-spacing:.5px}}
 table{{width:100%;border-collapse:collapse;font-size:.88rem}}
 th{{background:var(--surface2);color:var(--accent);padding:.6rem .8rem;text-align:left;font-size:.78rem;letter-spacing:.5px;text-transform:uppercase}}
 td{{padding:.5rem .8rem;border-bottom:1px solid var(--border);vertical-align:top}}
 tr:hover td{{background:var(--surface2)}}
 .small{{font-size:.78rem;color:var(--dim)}}
-
-/* Badge */
 .badge{{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:.72rem;font-weight:bold;color:#fff}}
-
-/* Subdomains */
 .sub-grid{{display:flex;flex-wrap:wrap;gap:.5rem}}
 .sub-chip{{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.3rem .7rem;font-size:.82rem;font-family:monospace;color:var(--accent)}}
-
-/* AI box */
 .ai-box{{background:var(--surface2);border-left:3px solid var(--accent2);padding:1rem 1.5rem;border-radius:0 8px 8px 0;white-space:pre-wrap;font-size:.9rem;line-height:1.7}}
-
-/* Error list */
 .err-list{{color:var(--dim);font-size:.85rem}} .err-list li{{margin:.3rem 0}}
-
 code{{background:var(--surface2);padding:.1rem .4rem;border-radius:4px;color:#7dd3fc}}
 footer{{text-align:center;padding:2rem;color:var(--dim);font-size:.8rem;border-top:1px solid var(--border)}}
 </style>
@@ -225,7 +317,7 @@ footer{{text-align:center;padding:2rem;color:var(--dim);font-size:.8rem;border-t
 <body>
 
 <header>
-  <div class="ninja">⚡ RECON NINJA v3</div>
+  <div class="ninja">⚡ RECON NINJA v4.0.0</div>
   <h1>{esc(result.target)}</h1>
   <div class="meta">
     Started: {esc(result.start_time)} &nbsp;→&nbsp; Finished: {esc(result.end_time)}<br>
@@ -258,6 +350,11 @@ footer{{text-align:center;padding:2rem;color:var(--dim);font-size:.8rem;border-t
 
 {"<section><h2>🧪 Nikto Findings</h2><ul class='err-list'>" + nikto_items + "</ul></section>" if result.nikto_findings else ""}
 
+{whois_section}
+{wayback_section}
+{ssl_section}
+{vt_section}
+{shodan_section}
 {ai_section}
 
 {"<section><h2>⚠ Errors</h2><ul class='err-list'>" + "".join(f'<li>{esc(e)}</li>' for e in result.errors) + "</ul></section>" if result.errors else ""}
@@ -278,7 +375,7 @@ footer{{text-align:center;padding:2rem;color:var(--dim);font-size:.8rem;border-t
 def generate_markdown_report(result: ReconResult, path: Path) -> None:
     total_open = sum(len(h.open_ports) for h in result.hosts)
     lines = [
-        f"# ReconNinja v3 Report — `{result.target}`", "",
+        f"# ReconNinja v4.0.0 Report — `{result.target}`", "",
         "## Summary", "",
         f"| Field | Value |",
         f"|---|---|",
@@ -326,6 +423,79 @@ def generate_markdown_report(result: ReconResult, path: Path) -> None:
                   "|---|---|---|---|"]
         for vf in result.nuclei_findings:
             lines.append(f"| **{vf.severity.upper()}** | {vf.title} | {vf.target} | {vf.cve} |")
+        lines += [""]
+
+    # v4 — WHOIS
+    if result.whois_results:
+        w = result.whois_results[0]
+        lines += ["## WHOIS", "",
+                  f"| Field | Value |", "|---|---|",
+                  f"| Registrar | {w.get('registrar','—')} |",
+                  f"| Registered | {w.get('registered','—')} |",
+                  f"| Expires | {w.get('expires','—')} |",
+                  f"| Updated | {w.get('updated','—')} |",
+                  f"| Registrant | {w.get('registrant','—')} |",
+                  f"| Country | {w.get('country','—')} |",
+                  f"| Name Servers | {', '.join(w.get('name_servers',[]))} |",
+                  f"| Emails | {', '.join(w.get('emails',[]))} |",
+                  ""]
+
+    # v4 — Wayback
+    if result.wayback_results:
+        wb = result.wayback_results[0]
+        interesting = wb.get("interesting", [])[:30]
+        lines += [f"## Wayback Machine ({wb.get('total', 0)} URLs found)", "",
+                  "| URL | Reason | Timestamp |",
+                  "|---|---|---|"]
+        for i in interesting:
+            lines.append(f"| {i['url']} | {i['reason']} | {i['timestamp']} |")
+        lines += [""]
+
+    # v4 — SSL
+    if result.ssl_results:
+        ssl_r = result.ssl_results[0]
+        lines += ["## SSL/TLS Analysis", "",
+                  "| Port | Protocol | Cipher | CN | Expiry | Self-Signed |",
+                  "|---|---|---|---|---|---|"]
+        for cert in ssl_r.get("certs", []):
+            cn = cert.get("subject", {}).get("commonName", "—")
+            lines.append(
+                f"| {cert.get('port','—')} | {cert.get('version','—')} | "
+                f"{cert.get('cipher','—')} | {cn} | "
+                f"{cert.get('not_after','—')} ({cert.get('days_left','?')}d) | "
+                f"{'YES ⚠' if cert.get('self_signed') else 'No'} |"
+            )
+        if ssl_r.get("issues"):
+            lines += ["", "### SSL Issues", "",
+                      "| Severity | Detail |", "|---|---|"]
+            for issue in ssl_r["issues"]:
+                lines.append(f"| **{issue.get('severity','').upper()}** | {issue.get('detail','')} |")
+        lines += [""]
+
+    # v4 — VirusTotal
+    if result.vt_results:
+        vt_r = result.vt_results[0]
+        lines += ["## VirusTotal", "",
+                  f"| Field | Value |", "|---|---|",
+                  f"| Target | {vt_r.get('domain', vt_r.get('ip', '—'))} |",
+                  f"| Malicious | {vt_r.get('malicious', 0)} |",
+                  f"| Suspicious | {vt_r.get('suspicious', 0)} |",
+                  f"| Reputation | {vt_r.get('reputation', '—')} |",
+                  f"| Registrar | {vt_r.get('registrar', '—')} |",
+                  ""]
+
+    # v4 — Shodan
+    if result.shodan_results:
+        lines += ["## Shodan Intelligence", "",
+                  "| IP | Org | Country | Ports | CVEs |",
+                  "|---|---|---|---|---|"]
+        for sh in result.shodan_results[:10]:
+            ports = ", ".join(str(p) for p in sh.get("open_ports", [])[:10])
+            cves  = ", ".join(sh.get("vulns", [])[:5])
+            lines.append(
+                f"| {sh.get('ip','—')} | {sh.get('org','—')} | "
+                f"{sh.get('country','—')} | {ports} | {cves} |"
+            )
         lines += [""]
 
     if result.ai_analysis:

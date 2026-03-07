@@ -1,5 +1,5 @@
 """
-ReconNinja v3.3 — Core Orchestration Engine
+ReconNinja v4.0.0 — Core Orchestration Engine
 Drives the full recon pipeline: passive → async TCP scan → nmap → web → vuln → report.
 """
 
@@ -37,6 +37,7 @@ from core.vuln import run_nuclei, run_aquatone, run_gowitness
 from core.cve_lookup import lookup_cves_for_host_result          # FIX v3.3.0
 from core.ai_analysis import run_ai_analysis                     # FIX v3.3.0
 from core.resume import save_state
+from utils.logger import setup_file_logger
 from core.shodan_lookup import shodan_bulk_lookup
 from core.virustotal import vt_domain_lookup, vt_ip_lookup
 from core.whois_lookup import whois_lookup
@@ -129,7 +130,6 @@ def orchestrate(cfg: ScanConfig,
     out_folder = resume_folder if resume_folder else ensure_dir(REPORTS_DIR / sanitize_dirname(cfg.target) / stamp)
     log_path   = out_folder / "scan.log"
 
-    from utils.logger import setup_file_logger
     setup_file_logger(log_path)
 
     (out_folder / "scan_config.json").write_text(
@@ -140,8 +140,8 @@ def orchestrate(cfg: ScanConfig,
     console.print(f"\n[success]📁 Output folder: {out_folder}[/]\n")
 
     # ── Phase 1: Passive Recon ─────────────────────────────────────────────
-    if cfg.run_subdomains and "passive_recon" not in result.phases_completed:  # FIX v3.3.0: skip on resume
-        console.print(Panel.fit("[phase] PHASE 1 — Passive Recon [/]"))
+    if cfg.run_subdomains and "passive_recon" not in result.phases_completed:
+        console.print(Panel.fit("[phase]P1[/]"))
         sub_dir = out_folder / "subdomains"
         result.subdomains = subdomain_enum(cfg.target, sub_dir, cfg.wordlist_size)
         result.phases_completed.append("passive_recon")
@@ -435,7 +435,7 @@ def orchestrate(cfg: ScanConfig,
         result.phases_completed.append("plugins")
         save_state(result, cfg, out_folder)   # FIX v3.3.0
 
-    # ── Phase 13: Reports ─────────────────────────────────────────────────
+    # ── Phase 14: Reports ─────────────────────────────────────────────────
     result.end_time = timestamp()
     console.print(Rule("[header]Generating Reports[/]"))
 

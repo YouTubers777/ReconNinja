@@ -1,6 +1,6 @@
 """
 core/resume.py
-ReconNinja v3.3 — Scan State / Resume System
+ReconNinja v4.0.0 — Scan State / Resume System
 
 Saves scan state to a JSON file after each phase completes.
 If a scan crashes, use --resume <state_file> to continue from last checkpoint.
@@ -36,7 +36,7 @@ def save_state(result: ReconResult, cfg: ScanConfig, out_folder: Path) -> None:
     Called by orchestrator after every completed phase.
     """
     state = {
-        "version":    "3.2",
+        "version":    "4.0.0",
         "config":     cfg.to_dict(),
         "result":     _result_to_dict(result),
         "out_folder": str(out_folder),
@@ -54,8 +54,8 @@ def load_state(state_path: Path) -> tuple[ReconResult, ScanConfig, Path] | None:
     Returns (result, config, out_folder) or None on failure.
     """
     try:
-        raw   = json.loads(state_path.read_text())
-        cfg   = _dict_to_config(raw["config"])
+        raw    = json.loads(state_path.read_text())
+        cfg    = _dict_to_config(raw["config"])
         result = _dict_to_result(raw["result"])
         out_folder = Path(raw["out_folder"])
         safe_print(f"[success]✔ Resumed scan for [bold]{cfg.target}[/][/]")
@@ -99,8 +99,7 @@ def _dict_to_result(d: dict) -> ReconResult:
         host = HostResult(**h)
         hosts.append(host)
 
-    web_findings = [WebFinding(**wf) for wf in d.get("web_findings", [])]
-
+    web_findings    = [WebFinding(**wf) for wf in d.get("web_findings", [])]
     nuclei_findings = [VulnFinding(**vf) for vf in d.get("nuclei_findings", [])]
 
     return ReconResult(
@@ -118,11 +117,17 @@ def _dict_to_result(d: dict) -> ReconResult:
         ai_analysis      = d.get("ai_analysis", ""),
         errors           = d.get("errors", []),
         phases_completed = d.get("phases_completed", []),
+        # v4.0.0 — new intelligence fields
+        shodan_results   = d.get("shodan_results", []),
+        vt_results       = d.get("vt_results", []),
+        whois_results    = d.get("whois_results", []),
+        wayback_results  = d.get("wayback_results", []),
+        ssl_results      = d.get("ssl_results", []),
     )
 
 
 def _dict_to_config(d: dict) -> ScanConfig:
-    nmap_raw = d.get("nmap_opts", {})          # FIX v3.3.0: .get() not .pop() — don't mutate caller's dict
+    nmap_raw  = d.get("nmap_opts", {})
     nmap_opts = NmapOptions(
         all_ports         = nmap_raw.get("all_ports", False),
         top_ports         = nmap_raw.get("top_ports", 1000),
@@ -135,7 +140,7 @@ def _dict_to_config(d: dict) -> ScanConfig:
         extra_flags       = nmap_raw.get("extra_flags", []),
         script_args       = nmap_raw.get("script_args", None),
     )
-    profile_str = d.get("profile", "standard")  # FIX v3.3.0: .get() not .pop()
+    profile_str = d.get("profile", "standard")
     return ScanConfig(
         target            = d["target"],
         profile           = ScanProfile(profile_str),
@@ -150,11 +155,23 @@ def _dict_to_config(d: dict) -> ScanConfig:
         run_nuclei        = d.get("run_nuclei", False),
         run_httpx         = d.get("run_httpx", False),
         run_ai_analysis   = d.get("run_ai_analysis", False),
-        run_cve_lookup    = d.get("run_cve_lookup", False),   # FIX v3.3.0
-        ai_provider       = d.get("ai_provider", "groq"),     # FIX v3.3.0
-        ai_key            = d.get("ai_key", ""),               # FIX v3.3.0
-        ai_model          = d.get("ai_model", ""),             # FIX v3.3.0
-        nvd_key           = d.get("nvd_key", ""),              # FIX v3.3.0
+        run_cve_lookup    = d.get("run_cve_lookup", False),
+        ai_provider       = d.get("ai_provider", "groq"),
+        ai_key            = d.get("ai_key", ""),
+        ai_model          = d.get("ai_model", ""),
+        nvd_key           = d.get("nvd_key", ""),
+        # v4.0.0 fields
+        run_shodan        = d.get("run_shodan", False),
+        run_virustotal    = d.get("run_virustotal", False),
+        run_whois         = d.get("run_whois", False),
+        run_wayback       = d.get("run_wayback", False),
+        run_ssl           = d.get("run_ssl", False),
+        shodan_key        = d.get("shodan_key", ""),
+        vt_key            = d.get("vt_key", ""),
+        output_format     = d.get("output_format", "all"),
+        exclude_phases    = d.get("exclude_phases", []),
+        global_timeout    = d.get("global_timeout", 30),
+        rate_limit        = d.get("rate_limit", 0.0),
         masscan_rate      = d.get("masscan_rate", 5000),
         threads           = d.get("threads", 20),
         wordlist_size     = d.get("wordlist_size", "medium"),
