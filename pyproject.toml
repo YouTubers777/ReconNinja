@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "reconninja"
+name = "ReconNinja"
 version = "5.0.0"
 description = "14-phase automated reconnaissance framework for security researchers"
 readme = "README.md"
