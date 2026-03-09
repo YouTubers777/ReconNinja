@@ -32,7 +32,7 @@ ReconNinja automates every phase of a reconnaissance engagement into a single co
 pip install git+https://github.com/ExploitCraft/ReconNinja.git
 
 # From PIP
-pip install reconninja
+pip install ReconNinja
 
 # From install file (RECOMMENDED)
 git clone https://github.com/ExploitCraft/ReconNinja.git

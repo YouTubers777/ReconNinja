@@ -12,6 +12,7 @@ jobs:
 
     permissions:
       contents: write   # needed to create GitHub releases
+      id-token: write   # needed for PyPI trusted publishing
 
     steps:
       # ── 1. Checkout ─────────────────────────────────────────────────────────
