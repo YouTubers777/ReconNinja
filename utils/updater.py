@@ -42,7 +42,7 @@ def _get_latest_release() -> tuple[str, str]:
     with urllib.request.urlopen(req, timeout=15) as resp:
         data = json.loads(resp.read().decode())
 
-    tag     = data["tag_name"]                      # e.g. v3.3.0
+    tag     = data["tag_name"]                      # e.g. v5.0.0
     zip_url = data["zipball_url"]                   # GitHub source zip
 
     # Prefer our attached release asset if it exists

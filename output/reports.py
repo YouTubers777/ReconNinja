@@ -1,5 +1,5 @@
 """
-ReconNinja v4.0.0 — Report Generation
+ReconNinja v5.0.0 — Report Generation
 Produces JSON, HTML (dark UI dashboard), and Markdown reports.
 """
 
@@ -12,7 +12,7 @@ from pathlib import Path
 from utils.models import ReconResult, VulnFinding, HostResult
 
 APP_NAME = "ReconNinja"
-VERSION  = "4.0.0"
+VERSION  = "5.0.0"
 
 
 # ─── JSON ─────────────────────────────────────────────────────────────────────
@@ -70,7 +70,7 @@ def generate_json_report(result: ReconResult, path: Path) -> None:
         "nuclei_findings":  [_vuln(v) for v in result.nuclei_findings],
         "ai_analysis":      result.ai_analysis,
         "errors":           result.errors,
-        # v4.0.0 intelligence data
+        # v5.0.0 intelligence data
         "shodan_results":   result.shodan_results,
         "vt_results":       result.vt_results,
         "whois_results":    result.whois_results,
@@ -150,7 +150,7 @@ def generate_html_report(result: ReconResult, path: Path) -> None:
     crit_ports = sum(1 for h in result.hosts for p in h.open_ports if p.severity == "critical")
     crit_vulns = sum(1 for v in result.nuclei_findings if v.severity in ("critical", "high"))
 
-    # v4 — WHOIS section
+    # v5 — WHOIS section
     whois_section = ""
     if result.whois_results:
         w = result.whois_results[0]
@@ -170,7 +170,7 @@ def generate_html_report(result: ReconResult, path: Path) -> None:
           </table>
         </section>"""
 
-    # v4 — Wayback section
+    # v5 — Wayback section
     wayback_section = ""
     if result.wayback_results:
         wb = result.wayback_results[0]
@@ -186,7 +186,7 @@ def generate_html_report(result: ReconResult, path: Path) -> None:
           {"<table><thead><tr><th>URL</th><th>Reason</th><th>Timestamp</th></tr></thead><tbody>" + wb_rows + "</tbody></table>" if wb_rows else "<p style='color:var(--dim)'>No interesting URLs found.</p>"}
         </section>"""
 
-    # v4 — SSL section
+    # v5 — SSL section
     ssl_section = ""
     if result.ssl_results:
         ssl_r = result.ssl_results[0]
@@ -215,7 +215,7 @@ def generate_html_report(result: ReconResult, path: Path) -> None:
           {"<h3 style='margin-top:1rem;color:var(--warn)'>Issues</h3><table><thead><tr><th>Severity</th><th>Detail</th></tr></thead><tbody>" + issue_rows + "</tbody></table>" if issue_rows else ""}
         </section>"""
 
-    # v4 — VirusTotal section
+    # v5 — VirusTotal section
     vt_section = ""
     if result.vt_results:
         vt_r = result.vt_results[0]
@@ -234,7 +234,7 @@ def generate_html_report(result: ReconResult, path: Path) -> None:
           </table>
         </section>"""
 
-    # v4 — Shodan section
+    # v5 — Shodan section
     shodan_section = ""
     if result.shodan_results:
         sh_rows = ""
@@ -270,7 +270,7 @@ def generate_html_report(result: ReconResult, path: Path) -> None:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ReconNinja v4 — {esc(result.target)}</title>
+<title>ReconNinja v5 — {esc(result.target)}</title>
 <style>
 :root {{
   --bg:#0a0a0f;--surface:#13131f;--surface2:#1a1a2e;
@@ -318,7 +318,7 @@ footer{{text-align:center;padding:2rem;color:var(--dim);font-size:.8rem;border-t
 <body>
 
 <header>
-  <div class="ninja">⚡ RECON NINJA v4.0.0</div>
+  <div class="ninja">⚡ RECON NINJA v5.0.0</div>
   <h1>{esc(result.target)}</h1>
   <div class="meta">
     Started: {esc(result.start_time)} &nbsp;→&nbsp; Finished: {esc(result.end_time)}<br>
@@ -376,7 +376,7 @@ footer{{text-align:center;padding:2rem;color:var(--dim);font-size:.8rem;border-t
 def generate_markdown_report(result: ReconResult, path: Path) -> None:
     total_open = sum(len(h.open_ports) for h in result.hosts)
     lines = [
-        f"# ReconNinja v4.0.0 Report — `{result.target}`", "",
+        f"# ReconNinja v5.0.0 Report — `{result.target}`", "",
         "## Summary", "",
         f"| Field | Value |",
         f"|---|---|",
@@ -426,7 +426,7 @@ def generate_markdown_report(result: ReconResult, path: Path) -> None:
             lines.append(f"| **{vf.severity.upper()}** | {vf.title} | {vf.target} | {vf.cve} |")
         lines += [""]
 
-    # v4 — WHOIS
+    # v5 — WHOIS
     if result.whois_results:
         w = result.whois_results[0]
         lines += ["## WHOIS", "",
@@ -441,7 +441,7 @@ def generate_markdown_report(result: ReconResult, path: Path) -> None:
                   f"| Emails | {', '.join(w.get('emails',[]))} |",
                   ""]
 
-    # v4 — Wayback
+    # v5 — Wayback
     if result.wayback_results:
         wb = result.wayback_results[0]
         interesting = wb.get("interesting", [])[:30]
@@ -452,7 +452,7 @@ def generate_markdown_report(result: ReconResult, path: Path) -> None:
             lines.append(f"| {i['url']} | {i['reason']} | {i['timestamp']} |")
         lines += [""]
 
-    # v4 — SSL
+    # v5 — SSL
     if result.ssl_results:
         ssl_r = result.ssl_results[0]
         lines += ["## SSL/TLS Analysis", "",
@@ -473,7 +473,7 @@ def generate_markdown_report(result: ReconResult, path: Path) -> None:
                 lines.append(f"| **{issue.get('severity','').upper()}** | {issue.get('detail','')} |")
         lines += [""]
 
-    # v4 — VirusTotal
+    # v5 — VirusTotal
     if result.vt_results:
         vt_r = result.vt_results[0]
         lines += ["## VirusTotal", "",
@@ -485,7 +485,7 @@ def generate_markdown_report(result: ReconResult, path: Path) -> None:
                   f"| Registrar | {vt_r.get('registrar', '—')} |",
                   ""]
 
-    # v4 — Shodan
+    # v5 — Shodan
     if result.shodan_results:
         lines += ["## Shodan Intelligence", "",
                   "| IP | Org | Country | Ports | CVEs |",

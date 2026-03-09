@@ -1,6 +1,6 @@
 """
-tests/test_v4_modules.py — ReconNinja v4.0.0
-Tests for the 5 new v4 modules:
+tests/test_v4_modules.py — ReconNinja v5.0.0
+Tests for the 5 v5 intelligence modules:
   - core/shodan_lookup.py
   - core/virustotal.py
   - core/whois_lookup.py
@@ -347,7 +347,7 @@ class TestWayback:
 class TestSSLScan:
     def _make_cert(self, days_left=90, self_signed=False, cn="example.com"):
         import datetime
-        now   = datetime.datetime.utcnow()
+        now   = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
         after = now + datetime.timedelta(days=days_left)
         fmt   = "%b %d %H:%M:%S %Y %Z"
         subj  = ((("commonName", cn),),)
@@ -483,13 +483,13 @@ class TestSSLScan:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# RESUME v4 — state save/load round-trip for v4 fields
+# RESUME — state save/load round-trip for intelligence fields
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestResumeV4Fields:
     """
-    v4.0.0 bug: _dict_to_result and _dict_to_config both dropped all v4 fields.
-    After resume, v4 results were wiped and v4 flags were all False.
+    Bug fixed in v5.0.0: _dict_to_result and _dict_to_config both dropped all intelligence fields.
+    After resume, intelligence results were wiped and flags were all False.
     These tests verify the fix.
     """
 
@@ -563,7 +563,7 @@ class TestResumeV4Fields:
         assert cfg2.rate_limit     == 1.5
         assert "passive" in cfg2.exclude_phases
 
-    def test_state_version_is_v4(self):
+    def test_state_version_is_v5(self):
         import json, tempfile
         from pathlib import Path
         from core.resume import save_state
@@ -573,7 +573,7 @@ class TestResumeV4Fields:
             folder = Path(tmp)
             save_state(r, cfg, folder)
             state = json.loads((folder / "state.json").read_text())
-        assert state["version"] == "4.0.0"
+        assert state["version"] == "5.0.0"
 
     def test_v4_results_empty_list_survives_round_trip(self):
         import tempfile
@@ -593,7 +593,7 @@ class TestResumeV4Fields:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# REPORTS v4 — JSON report includes v4 fields
+# REPORTS — JSON report includes intelligence fields
 # ══════════════════════════════════════════════════════════════════════════════
 
 class TestReportsV4:
@@ -668,7 +668,7 @@ class TestReportsV4:
             data = json.loads(p.read_text())
         assert "ssl_results" in data
 
-    def test_json_version_is_v4(self):
+    def test_json_version_is_v5(self):
         import json, tempfile
         from pathlib import Path
         from output.reports import generate_json_report
@@ -677,7 +677,7 @@ class TestReportsV4:
             p = Path(tmp) / "report.json"
             generate_json_report(r, p)
             data = json.loads(p.read_text())
-        assert data["meta"]["version"] == "4.0.0"
+        assert data["meta"]["version"] == "5.0.0"
 
     def test_html_report_contains_whois_section(self):
         import tempfile
@@ -700,8 +700,8 @@ class TestReportsV4:
             p = Path(tmp) / "report.html"
             generate_html_report(r, p)
             html = p.read_text()
-        assert "v4.0.0" in html
-        assert "RECON NINJA v4" in html
+        assert "v5.0.0" in html
+        assert "RECON NINJA v5" in html
 
     def test_md_report_contains_whois_section(self):
         import tempfile
@@ -735,4 +735,4 @@ class TestReportsV4:
             p = Path(tmp) / "report.md"
             generate_markdown_report(r, p)
             md = p.read_text()
-        assert "v4.0.0" in md
+        assert "v5.0.0" in md

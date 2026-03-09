@@ -1,5 +1,5 @@
 """
-core/ssl_scan.py — ReconNinja v4.0.0
+core/ssl_scan.py — ReconNinja v5.0.0
 SSL/TLS certificate analysis — no external tools required.
 Uses Python ssl + socket stdlib only.
 """
@@ -103,7 +103,7 @@ def ssl_scan(host: str, ports: Optional[list[int]] = None) -> dict:
             try:
                 not_after  = datetime.datetime.strptime(cert.get("notAfter", ""), fmt)
                 not_before = datetime.datetime.strptime(cert.get("notBefore", ""), fmt)
-                days_left  = (not_after - datetime.datetime.utcnow()).days
+                days_left  = (not_after - datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)).days
                 cert_info["not_after"]  = str(not_after.date())
                 cert_info["not_before"] = str(not_before.date())
                 cert_info["days_left"]  = days_left

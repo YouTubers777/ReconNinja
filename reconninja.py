@@ -7,7 +7,7 @@
 ██║  ██║███████╗╚██████╗╚██████╔╝██║ ╚████║██║ ╚████║██║██║ ╚████║╚█████╔╝██║  ██║
 ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚════╝ ╚═╝  ╚═╝
 
-ReconNinja v4.0.0 — Elite All-in-One Recon Framework
+ReconNinja v5.0.0 — Elite All-in-One Recon Framework
   ⚠  Use ONLY against targets you own or have explicit written permission to test.
 
 Changelog v3.0 (from v2.1):
@@ -43,8 +43,8 @@ Changelog v3.1 (from v3.0):
   + NEW: --async-concurrency and --async-timeout CLI flags
   + OPT: RustScan now merges with async results (union) for maximum coverage
   + OPT: Nmap only scans confirmed-open ports — dramatically faster deep analysis
-  + FIX: masscan_rate crash on non-integer input (v3.0.1)
-  + FIX: FULL_SUITE no longer triggers custom nmap builder (v3.0.1)
+  + FIX: masscan_rate crash on non-integer input (v5.0.0)
+  + FIX: FULL_SUITE no longer triggers custom nmap builder (v5.0.0)
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ from core.orchestrator import orchestrate, print_tool_status
 from core.updater import run_update, print_update_status
 
 APP_NAME = "ReconNinja"
-VERSION  = "4.0.0"
+VERSION  = "5.0.0"
 
 
 
@@ -286,7 +286,7 @@ def parse_args() -> argparse.Namespace | None:
     parser.add_argument("--yes", "-y",    action="store_true",
                         help="Skip permission confirmation (automation)")
 
-    # v4.0.0 — new integrations
+    # v5.0.0 — new integrations
     parser.add_argument("--shodan",       action="store_true", help="Shodan host lookup for discovered IPs")
     parser.add_argument("--shodan-key",   default=None,        help="Shodan API key")
     parser.add_argument("--vt",           action="store_true", help="VirusTotal reputation check")
@@ -295,14 +295,14 @@ def parse_args() -> argparse.Namespace | None:
     parser.add_argument("--wayback",      action="store_true", help="Wayback Machine URL discovery")
     parser.add_argument("--ssl",          action="store_true", help="SSL/TLS certificate analysis")
 
-    # v4.0.0 — output control
+    # v5.0.0 — output control
     parser.add_argument("--output-format", default="all",
         choices=["all","html","json","md","txt"],
         help="Report format (default: all)")
     parser.add_argument("--exclude",      default="",
         help="Comma-separated phases to skip: passive,port,web,vuln,report")
 
-    # v4.0.0 — performance
+    # v5.0.0 — performance
     parser.add_argument("--timeout",      type=int,   default=30,
         help="Global per-operation timeout in seconds (default: 30)")
     parser.add_argument("--rate-limit",   type=float, default=0.0,
@@ -376,7 +376,7 @@ def build_config_from_args(args: argparse.Namespace) -> ScanConfig | None:
         ai_key          = getattr(args, "ai_key", None) or "",
         ai_model        = getattr(args, "ai_model", None) or "",
         nvd_key         = getattr(args, "nvd_key", None) or "",
-        # v4.0.0
+        # v5.0.0
         run_shodan      = getattr(args, "shodan", False) or is_full,
         run_virustotal  = getattr(args, "vt", False),
         run_whois       = getattr(args, "whois", False) or is_full,

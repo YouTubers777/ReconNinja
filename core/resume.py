@@ -1,6 +1,6 @@
 """
 core/resume.py
-ReconNinja v4.0.0 — Scan State / Resume System
+ReconNinja v5.0.0 — Scan State / Resume System
 
 Saves scan state to a JSON file after each phase completes.
 If a scan crashes, use --resume <state_file> to continue from last checkpoint.
@@ -36,7 +36,7 @@ def save_state(result: ReconResult, cfg: ScanConfig, out_folder: Path) -> None:
     Called by orchestrator after every completed phase.
     """
     state = {
-        "version":    "4.0.0",
+        "version":    "5.0.0",
         "config":     cfg.to_dict(),
         "result":     _result_to_dict(result),
         "out_folder": str(out_folder),
@@ -117,7 +117,7 @@ def _dict_to_result(d: dict) -> ReconResult:
         ai_analysis      = d.get("ai_analysis", ""),
         errors           = d.get("errors", []),
         phases_completed = d.get("phases_completed", []),
-        # v4.0.0 — new intelligence fields
+        # v5.0.0 — new intelligence fields
         shodan_results   = d.get("shodan_results", []),
         vt_results       = d.get("vt_results", []),
         whois_results    = d.get("whois_results", []),
@@ -160,7 +160,7 @@ def _dict_to_config(d: dict) -> ScanConfig:
         ai_key            = d.get("ai_key", ""),
         ai_model          = d.get("ai_model", ""),
         nvd_key           = d.get("nvd_key", ""),
-        # v4.0.0 fields
+        # v5.0.0 fields
         run_shodan        = d.get("run_shodan", False),
         run_virustotal    = d.get("run_virustotal", False),
         run_whois         = d.get("run_whois", False),

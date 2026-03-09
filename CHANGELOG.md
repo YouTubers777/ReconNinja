@@ -2,7 +2,20 @@
 
 ---
 
-## [4.0.0] — 2026-03-07
+## [5.0.0] — 2026-03-09
+
+### Bug Fixes
+- **`core/ports.py`** — Removed duplicate port 587 from `_NMAP_TOP_PORTS` preset list.
+- **`core/web.py: run_whatweb`** — Added missing `ensure_dir(out_folder)` call to prevent crashes when output directory does not exist.
+- **`core/web.py: run_nikto`** — Added missing `ensure_dir(out_folder)` call (same fix as `run_whatweb`).
+- **`plugins/__init__.py`** — Removed erroneous `@staticmethod` decorator from module-level function `_load_module`.
+
+### Version
+- Bumped 5.0.0 → 5.0.0 across `reconninja.py`, `pyproject.toml`, `output/reports.py`.
+
+---
+
+## [5.0.0] — 2026-03-07
 
 ### Added
 
@@ -25,8 +38,8 @@
 
 - **`core/resume.py: _dict_to_result`** — v4 result fields (`shodan_results`, `vt_results`, `whois_results`, `wayback_results`, `ssl_results`) were not restored on resume. Critical data loss on scan resume.
 - **`core/resume.py: _dict_to_config`** — v4 config fields (`run_shodan`, `run_virustotal`, `run_whois`, `run_wayback`, `run_ssl`, `shodan_key`, `vt_key`, `output_format`, `exclude_phases`, `global_timeout`, `rate_limit`) were not restored on resume. All v4 phases would silently skip on resume.
-- **`core/resume.py: save_state`** — version string updated `"3.2"` → `"4.0.0"`.
-- **`output/reports.py`** — VERSION updated `"3.0.0"` → `"4.0.0"`. HTML header updated "v3" → "v4.0.0". MD report header updated.
+- **`core/resume.py: save_state`** — version string updated `"3.2"` → `"5.0.0"`.
+- **`output/reports.py`** — VERSION updated `"5.0.0"` → `"5.0.0"`. HTML header updated "v3" → "v5.0.0". MD report header updated.
 - **`output/reports.py: generate_json_report`** — v4 result fields missing from JSON output payload. Now included.
 - **`output/reports.py: generate_html_report`** — v4 sections (WHOIS, Wayback, SSL, VirusTotal, Shodan) missing from HTML report.
 - **`output/reports.py: generate_markdown_report`** — v4 sections missing from Markdown report.
@@ -38,11 +51,11 @@
 ### Changed
 
 - `full_suite` profile auto-enables `--whois`, `--wayback`, `--ssl` (Shodan/VT require keys)
-- Completion banner updated to v4.0.0
+- Completion banner updated to v5.0.0
 
 ---
 
-## [3.3.0] — 2026-01-15
+## [5.0.0] — 2026-01-15
 
 ### Added
 - `--ai` with Groq / Ollama / Gemini / OpenAI support (`--ai-provider`, `--ai-key`, `--ai-model`)
@@ -60,7 +73,7 @@
 
 ---
 
-## [3.1.0] — 2025-12-01
+## [5.0.0] — 2025-12-01
 
 ### Added
 - `AsyncTCPScanner` — pure Python asyncio TCP connect, no root required
@@ -78,7 +91,7 @@
 
 ---
 
-## [3.0.0] — 2025-10-15
+## [5.0.0] — 2025-10-15
 
 ### Added
 - RustScan integration for ultra-fast port pre-discovery

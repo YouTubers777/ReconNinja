@@ -146,7 +146,7 @@ def lookup_cves_for_ports(
     ports:       list[PortInfo],
     target:      str,
     max_per_port: int = 3,
-    delay:        float = 6.5,   # FIX v3.3.0: NVD rate limit is 5 req/30s = 6s/req minimum (was 0.7 — caused 403s)
+    delay:        float = 6.5,   # FIX v5.0.0: NVD rate limit is 5 req/30s = 6s/req minimum (was 0.7 — caused 403s)
     api_key:      str | None = None,
 ) -> list[VulnFinding]:
     """

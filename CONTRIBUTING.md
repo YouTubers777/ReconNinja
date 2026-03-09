@@ -23,12 +23,12 @@
 ```bash
 git clone https://github.com/ExploitCraft/ReconNinja.git
 cd ReconNinja
-pip install rich pytest
+pip install rich
 python3 reconninja.py --check-tools
-pytest tests/ -v
+python3 -m unittest discover -s tests -v
 ```
 
-All 533 tests must pass before you submit anything.
+All tests must pass before you submit anything.
 
 ---
 
@@ -55,7 +55,7 @@ ReconNinja/
 │   ├── helpers.py       # Utility functions
 │   └── logger.py        # Rich terminal logger
 ├── plugins/             # Drop .py files here to extend ReconNinja
-└── tests/               # Full test suite — 533 tests, 0 failures
+└── tests/               # Full test suite — all passing
 ```
 
 ---
@@ -164,8 +164,8 @@ See `plugins/cve_banner_check.py` — checks open port banners against known-vul
 1. **Fork** the repo and create a branch: `git checkout -b fix/my-fix`
 2. **Make your changes** — follow the code style below
 3. **Write tests** — see Test Policy
-4. **Run the full suite**: `pytest tests/ -v` — must be green
-5. **Update `README.md`** if you changed test counts or added features
+4. **Run the full suite**: `python3 -m unittest discover -s tests -v` — must be green
+5. **Update `README.md`** if you added features or changed flags
 6. **Open a PR** against `main` with a clear title and description
 
 PR title format:
@@ -188,7 +188,6 @@ docs: <what documentation was updated>
 | 2 | Run existing tests — confirm nothing broke |
 | 3 | Add tests for your change — bug fixes get regression tests, new features get unit tests |
 | 4 | Run all tests again — must be 0 failures |
-| 5 | Update test count in `README.md` if it changed |
 
 ### Test file ownership
 
@@ -206,15 +205,14 @@ docs: <what documentation was updated>
 
 ```bash
 # Full suite
-pytest tests/ -v
+python3 -m unittest discover -s tests -v
 
 # Single file
-pytest tests/test_orchestrator.py -v
+python3 -m unittest tests.test_orchestrator -v
 
 # Single test
-pytest tests/test_orchestrator.py::TestPhaseSkipLogic::test_rustscan_not_called_when_in_phases_completed -v
+python3 -m unittest tests.test_orchestrator.TestPhaseSkipLogic.test_rustscan_not_called_when_in_phases_completed -v
 
-# Without pytest
 python3 -m unittest discover tests/
 ```
 

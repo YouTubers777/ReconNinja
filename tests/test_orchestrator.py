@@ -1,8 +1,8 @@
 """
-tests/test_orchestrator.py — ReconNinja v3.3.0
+tests/test_orchestrator.py — ReconNinja v5.0.0
 Comprehensive tests for core/orchestrator.py.
 
-Covers the critical v3.3.0 fixes:
+Covers the critical v5.0.0 fixes:
   1. All 13 phases skip on resume (phases_completed check)
   2. run_rustscan flag honoured — Phase 2 does NOT fire unconditionally
   3. Masscan re-hydrates all_open_ports on resume
@@ -190,7 +190,7 @@ class TestPhaseSkipGuardsExistInSource:
         assert "save_state" in src_after_passive[:300]
 
     def test_correct_import_lookup_cves_for_host_result(self):
-        # v3.2.0 bug: wrong function name. Must be exact.
+        # v5.0.0 bug: wrong function name. Must be exact.
         assert "lookup_cves_for_host_result" in self.SRC
         assert "lookup_cves_for_hosts" not in self.SRC  # old wrong name must not exist
 
@@ -223,7 +223,7 @@ class TestPhaseSkipLogic:
     """
 
     def test_rustscan_not_called_when_in_phases_completed(self):
-        """Critical v3.3.0 fix: run_rustscan=True but phase already done → skip."""
+        """Critical v5.0.0 fix: run_rustscan=True but phase already done → skip."""
         rustscan_mock = MagicMock(return_value={80})
         cfg = make_cfg(run_rustscan=True)
         result = make_result(phases=["rustscan", "async_tcp_scan", "nmap"])
@@ -394,7 +394,7 @@ class TestPhaseSkipLogic:
 
 class TestMasscanResume:
     """
-    v3.3.0 fix: when masscan phase is already completed, all_open_ports
+    v5.0.0 fix: when masscan phase is already completed, all_open_ports
     must be rehydrated from result.masscan_ports so Phase 4 has data.
     """
 
@@ -440,7 +440,7 @@ class TestMasscanResume:
 
 class TestSaveStateCheckpoints:
     """
-    v3.2.2 fix: save_state must be called after every phase.
+    v5.0.0 fix: save_state must be called after every phase.
     """
 
     def test_save_state_called_after_rustscan(self):
@@ -522,7 +522,7 @@ class TestSaveStateCheckpoints:
 
 class TestCVELookupWiring:
     """
-    v3.2.2 fix: CVE phase must actually execute when run_cve_lookup=True.
+    v5.0.0 fix: CVE phase must actually execute when run_cve_lookup=True.
     """
 
     def test_cve_not_called_when_flag_false(self):
@@ -598,7 +598,7 @@ class TestCVELookupWiring:
 
 class TestAIAnalysisWiring:
     """
-    v3.2.2 fix: --ai must call real run_ai_analysis(), not the fallback.
+    v5.0.0 fix: --ai must call real run_ai_analysis(), not the fallback.
     """
 
     def test_ai_called_when_flag_true(self):

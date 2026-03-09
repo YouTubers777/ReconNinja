@@ -4,9 +4,9 @@
 
 **14-phase automated reconnaissance framework for authorized security testing.**
 
-[![Version](https://img.shields.io/badge/version-4.0.0-6366f1?style=flat-square)](https://github.com/ExploitCraft/ReconNinja/releases)
+[![Version](https://img.shields.io/badge/version-5.0.0-6366f1?style=flat-square)](https://github.com/ExploitCraft/ReconNinja/releases)
 [![Python](https://img.shields.io/badge/python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-597-22c55e?style=flat-square)](tests/)
+[![Tests](https://img.shields.io/badge/tests-passing-22c55e?style=flat-square)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-f4f4f5?style=flat-square)](LICENSE)
 [![Author](https://img.shields.io/badge/author-ExploitCraft-a78bfa?style=flat-square)](https://github.com/ExploitCraft)
 [![Docs](https://img.shields.io/badge/docs-doc.emonpersonal.xyz-00e5ff?style=flat-square)](http://doc.emonpersonal.xyz/)
@@ -53,10 +53,10 @@ reconninja -t example.com
 # Full 14-phase pipeline
 reconninja -t example.com --profile full_suite -y
 
-# v4: WHOIS + Wayback + SSL — no keys needed
+# v5: WHOIS + Wayback + SSL — no keys needed
 reconninja -t example.com --whois --wayback --ssl -y
 
-# v4: Full intelligence
+# v5: Full intelligence
 reconninja -t example.com --profile full_suite \
   --whois --wayback --ssl \
   --shodan --shodan-key YOUR_KEY \
@@ -97,13 +97,13 @@ Phase 7   WhatWeb            technology fingerprinting
 Phase 8   Nikto              classic web vulnerability scanner
 Phase 9   Nuclei             template-based vulnerability detection
 Phase 10  Screenshots        aquatone → gowitness fallback
-Phase 12  v4 Integrations    WHOIS · Wayback · SSL · VirusTotal · Shodan
+Phase 12  v5 Integrations    WHOIS · Wayback · SSL · VirusTotal · Shodan
 Phase 14  AI Analysis        Groq / Ollama / Gemini / OpenAI threat summary
 ```
 
 ---
 
-## What's new in v4.0.0
+## What's new in v5.0.0
 
 **5 new intelligence modules — 3 need zero API keys:**
 
@@ -158,7 +158,7 @@ Vulnerability intelligence
   --cve                 NVD CVE lookup for detected services
   --nvd-key KEY         NVD API key (raises rate limit 5→50 req/30s)
 
-v4 integrations
+v5 integrations
   --shodan              Shodan host intelligence
   --shodan-key KEY      Shodan API key
   --vt                  VirusTotal reputation
@@ -197,7 +197,7 @@ Each scan creates a timestamped folder:
 reports/
 └── example.com_20260307_120000/
     ├── report.html         ← dark-mode dashboard
-    ├── report.json         ← full machine-readable results (includes v4 data)
+    ├── report.json         ← full machine-readable results (includes v5 intelligence data)
     ├── report.md           ← markdown summary
     ├── scan_config.json    ← exact config used
     ├── scan.log            ← full execution log
@@ -216,7 +216,7 @@ reports/
 reconninja --resume reports/example.com_20260307_120000/state.json
 ```
 
-All v4 results (WHOIS, Wayback, SSL, VT, Shodan) are preserved in `state.json` and restored on resume.
+All v5 results (WHOIS, Wayback, SSL, VT, Shodan) are preserved in `state.json` and restored on resume.
 
 ---
 
@@ -251,9 +251,9 @@ git clone https://github.com/ExploitCraft/ReconNinja.git
 cd ReconNinja
 chmod +x install.sh
 ./install.sh
-pytest                                       # run all 597 tests
-pytest tests/test_v4_modules.py -v          # v4 module tests
-pytest tests/test_orchestrator.py -v        # orchestrator tests
+python3 -m unittest discover -s tests -v    # run all tests
+python3 -m unittest tests.test_v4_modules -v
+python3 -m unittest tests.test_orchestrator -v
 ```
 
 ---

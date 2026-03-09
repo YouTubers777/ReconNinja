@@ -35,7 +35,6 @@ PLUGINS_DIR = Path(__file__).parent
 PluginFn = Callable[[str, Path, ReconResult, ScanConfig], None]
 
 
-@staticmethod
 def _load_module(plugin_path: Path):
     spec = importlib.util.spec_from_file_location(plugin_path.stem, plugin_path)
     if spec is None or spec.loader is None:

@@ -1,8 +1,8 @@
 """
-tests/test_resume.py — ReconNinja v3.3.0
+tests/test_resume.py — ReconNinja v5.0.0
 Tests for core/resume.py — save/load/find state.
 
-v3.3.0 additions:
+v5.0.0 additions:
   - TestConfigDeserialization: verifies run_cve_lookup, ai_provider, ai_key,
     ai_model, nvd_key survive the to_dict() → _dict_to_config() round-trip
   - TestSaveLoadState: verifies all new fields restored from state.json
@@ -143,7 +143,7 @@ class TestConfigDeserialization:
         for p in ScanProfile:
             cfg2 = _dict_to_config(ScanConfig(target="x", profile=p).to_dict())
             assert cfg2.profile == p
-    # ── v3.3.0: new fields must survive round-trip ────────────────────────────
+    # ── v5.0.0: new fields must survive round-trip ────────────────────────────
     def test_round_trip_run_cve_lookup_true(self):
         cfg = make_config(run_cve_lookup=True)
         cfg2 = _dict_to_config(cfg.to_dict())
@@ -280,7 +280,7 @@ class TestSaveLoadState:
             result, _, _ = load_state(out / STATE_FILE)
             assert "ai_analysis" in result.phases_completed
 
-    # ── v3.3.0: new config fields survive save → load ─────────────────────────
+    # ── v5.0.0: new config fields survive save → load ─────────────────────────
     def test_load_recovers_run_cve_lookup(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)

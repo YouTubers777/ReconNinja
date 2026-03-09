@@ -1,10 +1,10 @@
 """
-tests/conftest.py — ReconNinja v3.3.0
+tests/conftest.py — ReconNinja v5.0.0
 Shared fixtures for all test modules.
 
-v3.3.0 additions:
+v5.0.0 additions:
   - basic_config: now includes run_cve_lookup, ai_provider, ai_key, ai_model, nvd_key
-  - full_config:  new fixture with all v3.3.0 AI/CVE fields populated
+  - full_config:  new fixture with all v5.0.0 AI/CVE fields populated
 """
 import pytest
 import sys
@@ -95,12 +95,12 @@ def basic_result(basic_host, basic_web_finding, basic_vuln):
 
 @pytest.fixture
 def basic_config():
-    """Standard config with v3.3.0 defaults (all new fields present)."""
+    """Standard config with v5.0.0 defaults (all new fields present)."""
     return ScanConfig(
         target="example.com",
         profile=ScanProfile.STANDARD,
         nmap_opts=NmapOptions(),
-        # v3.3.0 fields — defaults
+        # v5.0.0 fields — defaults
         run_cve_lookup=False,
         ai_provider="groq",
         ai_key="",
@@ -110,7 +110,7 @@ def basic_config():
 
 @pytest.fixture
 def full_config():
-    """Full-suite config with all v3.3.0 AI/CVE fields populated."""
+    """Full-suite config with all v5.0.0 AI/CVE fields populated."""
     return ScanConfig(
         target="example.com",
         profile=ScanProfile.FULL_SUITE,
@@ -120,11 +120,11 @@ def full_config():
         run_nuclei=True,
         run_httpx=True,
         run_ai_analysis=True,
-        run_cve_lookup=True,    # v3.3.0
-        ai_provider="groq",     # v3.3.0
-        ai_key="gsk_testkey",   # v3.3.0
-        ai_model="llama3-70b",  # v3.3.0
-        nvd_key="nvd_testkey",  # v3.3.0
+        run_cve_lookup=True,    # v5.0.0
+        ai_provider="groq",     # v5.0.0
+        ai_key="gsk_testkey",   # v5.0.0
+        ai_model="llama3-70b",  # v5.0.0
+        nvd_key="nvd_testkey",  # v5.0.0
         threads=20,
         masscan_rate=5000,
     )

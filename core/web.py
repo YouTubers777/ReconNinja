@@ -105,6 +105,7 @@ def enrich_hosts_with_web(
 # ─── WhatWeb ──────────────────────────────────────────────────────────────────
 
 def run_whatweb(target_url: str, out_folder: Path) -> Optional[Path]:
+    ensure_dir(out_folder)
     if not tool_exists("whatweb"):
         safe_print("[dim]whatweb not found — skipping[/]")
         return None
@@ -122,6 +123,7 @@ def run_whatweb(target_url: str, out_folder: Path) -> Optional[Path]:
 # ─── Nikto ────────────────────────────────────────────────────────────────────
 
 def run_nikto(target_url: str, out_folder: Path) -> Optional[Path]:
+    ensure_dir(out_folder)
     if not tool_exists("nikto"):
         safe_print("[dim]nikto not found — skipping[/]")
         return None
