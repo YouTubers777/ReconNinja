@@ -50,12 +50,9 @@ Changelog v3.1 (from v3.0):
 from __future__ import annotations
 
 import argparse
-import os
 import signal
 import sys
 from pathlib import Path
-
-from dotenv import load_dotenv
 
 # Ensure project root is in path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -75,7 +72,7 @@ from core.orchestrator import orchestrate, print_tool_status
 from core.updater import run_update, print_update_status
 
 APP_NAME = "ReconNinja"
-VERSION  = "5.1.1"
+VERSION  = "5.2.1"
 
 
 
@@ -376,17 +373,17 @@ def build_config_from_args(args: argparse.Namespace) -> ScanConfig | None:
         run_ai_analysis = args.ai         or is_full,
         run_cve_lookup  = getattr(args, "cve", False) or getattr(args, "cve_lookup", False),
         ai_provider     = getattr(args, "ai_provider", "groq"),
-        ai_key          = getattr(args, "ai_key",     None) or os.getenv("GROQ_API_KEY",   ""),
-        ai_model        = getattr(args, "ai_model",   None) or "",
-        nvd_key         = getattr(args, "nvd_key",    None) or os.getenv("NVD_API_KEY",    ""),
+        ai_key          = getattr(args, "ai_key", None) or "",
+        ai_model        = getattr(args, "ai_model", None) or "",
+        nvd_key         = getattr(args, "nvd_key", None) or "",
         # v5.0.0
         run_shodan      = getattr(args, "shodan", False) or is_full,
         run_virustotal  = getattr(args, "vt", False),
         run_whois       = getattr(args, "whois", False) or is_full,
         run_wayback     = getattr(args, "wayback", False) or is_full,
         run_ssl         = getattr(args, "ssl", False) or is_full,
-        shodan_key      = getattr(args, "shodan_key", None) or os.getenv("SHODAN_API_KEY", ""),
-        vt_key          = getattr(args, "vt_key",     None) or os.getenv("VT_API_KEY",     ""),
+        shodan_key      = getattr(args, "shodan_key", None) or "",
+        vt_key          = getattr(args, "vt_key", None) or "",
         output_format   = getattr(args, "output_format", "all"),
         exclude_phases  = exclude,
         global_timeout  = getattr(args, "timeout", 30),
@@ -403,8 +400,6 @@ def build_config_from_args(args: argparse.Namespace) -> ScanConfig | None:
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 def main() -> None:
-    load_dotenv()  # Load .env file before anything else
-
     def _sigint(sig, frame):
         console.print("\n[danger]Interrupted — partial results may exist in reports/[/]")
         sys.exit(0)

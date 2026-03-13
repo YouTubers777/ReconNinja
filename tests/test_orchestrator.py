@@ -185,9 +185,12 @@ class TestPhaseSkipGuardsExistInSource:
         assert 'cfg.run_rustscan and \"rustscan\" not in' in self.SRC
 
     def test_save_state_called_after_passive_recon(self):
-        # Every phase must save a checkpoint
-        src_after_passive = self.SRC[self.SRC.find("passive_recon"):]
-        assert "save_state" in src_after_passive[:300]
+        # Every phase must save a checkpoint — anchor on append line, not guard
+        anchor = 'phases_completed.append("passive_recon")'
+        idx = self.SRC.find(anchor)
+        assert idx != -1, "passive_recon append not found"
+        src_after_append = self.SRC[idx:]
+        assert "save_state" in src_after_append[:120]
 
     def test_correct_import_lookup_cves_for_host_result(self):
         # v5.0.0 bug: wrong function name. Must be exact.

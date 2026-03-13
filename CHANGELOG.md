@@ -2,6 +2,27 @@
 
 ---
 
+## [5.2.1] — 2026-03-13 [BUGFIX]
+
+### Fixed
+- **Bug #1** `orchestrator.py` — `--exclude` flag was parsed but never applied; all phase guards now check `cfg.exclude_phases`
+- **Bug #2** `orchestrator.py` — VirusTotal always called `vt_domain_lookup` even on IP targets; now routes to `vt_ip_lookup` correctly via `ipaddress.ip_address()` check
+- **Bug #3** `orchestrator.py` — Screenshots phase skipped entirely when no subdomain file existed; now uses `web_findings` URLs as primary target list with main domain as fallback
+- **Bug #4** `reconninja.py`, `reports.py`, `orchestrator.py`, `resume.py` — Version hardcoded as `5.0.0` in multiple files; all updated to `5.2.1`
+- **Bug #5** `orchestrator.py` — Dead imports (`signal`, `sys`, `asdict`) removed
+- **Bug #6** `updater.py` — `subprocess.run` calls missing `timeout` parameter; added `timeout=300` to prevent hung processes
+- **Bug #7** `tests/test_v4_modules.py` — Version assertion tests expected old `5.0.0`; updated to `5.2.1`
+- **Bug #8** `tests/test_orchestrator.py` — `test_save_state_called_after_passive_recon` used wrong source anchor causing false failure; fixed to anchor on `phases_completed.append` line
+- **Bug #9** `orchestrator.py` — Phase 2b Async TCP ran even when `port` phase was excluded; wrapped in `exclude_phases` guard
+- `resume.py` — State file `version` field was hardcoded `5.0.0`; updated to `5.2.1`
+- `requirements.txt` — Added `python-dotenv>=1.0.0` dependency
+
+### Tests
+- 597/597 pytest passing (100%)
+- All version assertions updated to `5.2.1`
+
+---
+
 ## [5.0.0] — 2026-03-09
 
 ### Bug Fixes

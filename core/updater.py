@@ -174,13 +174,13 @@ def run_update(force: bool = False) -> bool:
             subprocess.run(
                 [sys.executable, "-m", "pip", "install", "-r", str(req_file),
                  "--break-system-packages", "-q"],
-                check=True, capture_output=True,
+                check=True, capture_output=True, timeout=300,
             )
         except subprocess.CalledProcessError:
             # Try without --break-system-packages
             subprocess.run(
                 [sys.executable, "-m", "pip", "install", "-r", str(req_file), "-q"],
-                check=False,
+                check=False, timeout=300,
             )
 
     # ── Done ──────────────────────────────────────────────────────────────────

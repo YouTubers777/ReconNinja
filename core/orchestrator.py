@@ -1,16 +1,14 @@
 """
-ReconNinja v5.0.0 — Core Orchestration Engine
+ReconNinja v5.2.1 — Core Orchestration Engine
 Drives the full recon pipeline: passive → async TCP scan → nmap → web → vuln → report.
 """
 
 from __future__ import annotations
 
 import copy
+import ipaddress as _ipaddress
 import json
-import signal
-import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed, Future
-from dataclasses import asdict
 from pathlib import Path
 
 from rich.panel import Panel
@@ -34,8 +32,8 @@ from core.ports import (
 )
 from core.web import run_httpx, run_whatweb, run_nikto, run_dir_scan, enrich_hosts_with_web
 from core.vuln import run_nuclei, run_aquatone, run_gowitness
-from core.cve_lookup import lookup_cves_for_host_result          # FIX v5.0.0
-from core.ai_analysis import run_ai_analysis                     # FIX v5.0.0
+from core.cve_lookup import lookup_cves_for_host_result
+from core.ai_analysis import run_ai_analysis
 from core.resume import save_state
 from utils.logger import setup_file_logger
 from core.shodan_lookup import shodan_bulk_lookup
@@ -140,7 +138,9 @@ def orchestrate(cfg: ScanConfig,
     console.print(f"\n[success]📁 Output folder: {out_folder}[/]\n")
 
     # ── Phase 1: Passive Recon ─────────────────────────────────────────────
-    if cfg.run_subdomains and "passive_recon" not in result.phases_completed:
+    # BUG #1 FIX: exclude_phases check added to all phases
+    if cfg.run_subdomains and "passive_recon" not in result.phases_completed \
+            and "passive" not in cfg.exclude_phases:
         console.print(Panel.fit("[phase]P1[/]"))
         sub_dir = out_folder / "subdomains"
         result.subdomains = subdomain_enum(cfg.target, sub_dir, cfg.wordlist_size)
@@ -148,6 +148,8 @@ def orchestrate(cfg: ScanConfig,
         save_state(result, cfg, out_folder)
     elif "passive_recon" in result.phases_completed:
         safe_print("[dim]Phase 1 — Passive Recon: already completed, skipping[/]")
+    elif "passive" in cfg.exclude_phases:
+        safe_print("[dim]Phase 1 — Passive Recon: excluded[/]")
 
     # ─────────────────────────────────────────────────────────────────────
     # PORT DISCOVERY & SERVICE ANALYSIS (v3.3):
@@ -163,7 +165,8 @@ def orchestrate(cfg: ScanConfig,
     all_open_ports: set[int] = set()
 
     # ── Phase 2: RustScan — primary port discovery ─────────────────────
-    if cfg.run_rustscan and "rustscan" not in result.phases_completed:  # FIX v5.0.0: honour flag + skip on resume
+    if cfg.run_rustscan and "rustscan" not in result.phases_completed \
+            and "port" not in cfg.exclude_phases:
         console.print(Panel.fit("[phase] PHASE 2 — RustScan Port Discovery [/]"))
         rustscan_ports = run_rustscan(cfg.target, out_folder / "rustscan")
         all_open_ports |= rustscan_ports
@@ -176,34 +179,38 @@ def orchestrate(cfg: ScanConfig,
         rustscan_ports: set[int] = set()
 
     # ── Phase 2b: Async TCP — fallback / gap-filler ────────────────────
-    if not rustscan_ports:
-        console.print(Panel.fit("[phase] PHASE 2b — Async TCP Scan (RustScan fallback) [/]"))
-    else:
-        console.print(Panel.fit("[phase] PHASE 2b — Async TCP Scan (gap-fill) [/]"))
+    if "port" not in cfg.exclude_phases:
+        if not rustscan_ports:
+            console.print(Panel.fit("[phase] PHASE 2b — Async TCP Scan (RustScan fallback) [/]"))
+        else:
+            console.print(Panel.fit("[phase] PHASE 2b — Async TCP Scan (gap-fill) [/]"))
 
-    async_out = ensure_dir(out_folder / "async_scan")
-    async_top_n = None if nmap_opts.all_ports else (nmap_opts.top_ports or 1000)
-    async_port_infos, _ = async_port_scan(
-        target          = cfg.target,
-        top_n           = async_top_n,
-        concurrency     = cfg.async_concurrency,
-        connect_timeout = cfg.async_timeout,
-        out_folder      = async_out,
-    )
-    if "async_tcp_scan" not in result.phases_completed:  # FIX v5.0.0: skip on resume
-        async_ports = {p.port for p in async_port_infos}
-        new_from_async = async_ports - all_open_ports
-        if new_from_async:
-            safe_print(f"[info]Async scan found {len(new_from_async)} extra port(s): "
-                       f"{', '.join(str(p) for p in sorted(new_from_async))}[/]")
-        all_open_ports |= async_ports
-        result.phases_completed.append("async_tcp_scan")
-        save_state(result, cfg, out_folder)
-    else:
-        safe_print("[dim]Phase 2b — Async TCP: already completed, skipping[/]")
+        async_out = ensure_dir(out_folder / "async_scan")
+        async_top_n = None if nmap_opts.all_ports else (nmap_opts.top_ports or 1000)
+        async_port_infos, _ = async_port_scan(
+            target          = cfg.target,
+            top_n           = async_top_n,
+            concurrency     = cfg.async_concurrency,
+            connect_timeout = cfg.async_timeout,
+            out_folder      = async_out,
+        )
+        if "async_tcp_scan" not in result.phases_completed:
+            async_ports = {p.port for p in async_port_infos}
+            new_from_async = async_ports - all_open_ports
+            if new_from_async:
+                safe_print(f"[info]Async scan found {len(new_from_async)} extra port(s): "
+                           f"{', '.join(str(p) for p in sorted(new_from_async))}[/]")
+            all_open_ports |= async_ports
+            result.phases_completed.append("async_tcp_scan")
+            save_state(result, cfg, out_folder)
+        else:
+            safe_print("[dim]Phase 2b — Async TCP: already completed, skipping[/]")
+    elif "port" in cfg.exclude_phases:
+        safe_print("[dim]Phase 2b — Async TCP: excluded[/]")
 
     # ── Phase 3: Masscan — optional extra sweep ────────────────────────
-    if cfg.run_masscan and "masscan" not in result.phases_completed:  # FIX v5.0.0
+    if cfg.run_masscan and "masscan" not in result.phases_completed \
+            and "port" not in cfg.exclude_phases:
         console.print(Panel.fit("[phase] PHASE 3 — Masscan Sweep [/]"))
         _, masscan_ports = run_masscan(cfg.target, out_folder / "masscan", cfg.masscan_rate)
         if masscan_ports:
@@ -230,9 +237,11 @@ def orchestrate(cfg: ScanConfig,
     # ── Phase 4: Nmap service analysis — confirmed ports only ──────────
     targets_to_scan = result.subdomains if result.subdomains else [cfg.target]
     all_hosts: list[HostResult] = []
-    if "nmap" in result.phases_completed:  # FIX v5.0.0: skip on resume
+    if "nmap" in result.phases_completed:
         safe_print("[dim]Phase 4 — Nmap: already completed, skipping[/]")
         all_hosts = result.hosts
+    elif "port" in cfg.exclude_phases:
+        safe_print("[dim]Phase 4 — Nmap: skipped (excluded)[/]")
     else:
         console.print(Panel.fit("[phase] PHASE 4 — Nmap Service Analysis [/]"))
         if not all_open_ports:
@@ -279,7 +288,8 @@ def orchestrate(cfg: ScanConfig,
         save_state(result, cfg, out_folder)
 
     # ── Phase 4b: CVE Lookup ──────────────────────────────────────────────────
-    if cfg.run_cve_lookup and result.hosts and "cve_lookup" not in result.phases_completed:  # FIX v5.0.0
+    if cfg.run_cve_lookup and result.hosts and "cve_lookup" not in result.phases_completed \
+            and "vuln" not in cfg.exclude_phases:
         console.print(Panel.fit("[phase] PHASE 4b — CVE Lookup (NVD) [/]"))
         cve_findings = []
         for host in result.hosts:
@@ -291,13 +301,13 @@ def orchestrate(cfg: ScanConfig,
         result.nuclei_findings += cve_findings
         safe_print(f"[success]✔ CVE lookup: {len(cve_findings)} finding(s)[/]")
         result.phases_completed.append("cve_lookup")
-        save_state(result, cfg, out_folder)   # FIX v5.0.0
+        save_state(result, cfg, out_folder)
 
     # ── Phase 5: Web Service Detection (httpx) ────────────────────────────
     web_targets: list[str] = []
-    if cfg.run_httpx and "httpx" not in result.phases_completed:  # FIX v5.0.0
+    if cfg.run_httpx and "httpx" not in result.phases_completed \
+            and "web" not in cfg.exclude_phases:
         console.print(Panel.fit("[phase] PHASE 5 — Web Service Detection [/]"))
-        # Build web targets from subdomains + hosts with web ports
         web_targets = list(result.subdomains) if result.subdomains else [cfg.target]
         for host in result.hosts:
             for p in host.web_ports:
@@ -309,13 +319,14 @@ def orchestrate(cfg: ScanConfig,
         result.web_findings = run_httpx(web_targets, out_folder / "httpx")
         enrich_hosts_with_web(result.hosts, result.web_findings)
         result.phases_completed.append("httpx")
-        save_state(result, cfg, out_folder)   # FIX v5.0.0
+        save_state(result, cfg, out_folder)
 
     # ── Phase 6: Directory Brute Force ────────────────────────────────────
-    if cfg.run_feroxbuster and "directory_scan" not in result.phases_completed:  # FIX v5.0.0
+    if cfg.run_feroxbuster and "directory_scan" not in result.phases_completed \
+            and "web" not in cfg.exclude_phases:
         console.print(Panel.fit("[phase] PHASE 6 — Directory Discovery [/]"))
         dir_targets = [wf.url for wf in result.web_findings] or [f"https://{cfg.target}"]
-        for url in dir_targets[:10]:  # cap to avoid runaway
+        for url in dir_targets[:10]:
             dir_file = run_dir_scan(url, out_folder / "dirscan" / sanitize_dirname(url), cfg.wordlist_size)
             if dir_file and dir_file.exists():
                 result.dir_findings += [
@@ -323,52 +334,67 @@ def orchestrate(cfg: ScanConfig,
                 ]
         result.dir_findings = result.dir_findings[:1000]
         result.phases_completed.append("directory_scan")
-        save_state(result, cfg, out_folder)   # FIX v5.0.0
+        save_state(result, cfg, out_folder)
 
     # ── Phase 7: Tech Fingerprinting ──────────────────────────────────────
-    if cfg.run_whatweb and "whatweb" not in result.phases_completed:  # FIX v5.0.0
+    if cfg.run_whatweb and "whatweb" not in result.phases_completed \
+            and "web" not in cfg.exclude_phases:
         console.print(Panel.fit("[phase] PHASE 7 — Tech Fingerprinting [/]"))
         ww_file = run_whatweb(f"https://{cfg.target}", out_folder / "whatweb")
         if ww_file and ww_file.exists():
             result.whatweb_findings = ww_file.read_text().splitlines()
         result.phases_completed.append("whatweb")
-        save_state(result, cfg, out_folder)   # FIX v5.0.0
+        save_state(result, cfg, out_folder)
 
     # ── Phase 8: Web Vulnerability Scan (Nikto) ───────────────────────────
-    if cfg.run_nikto and "nikto" not in result.phases_completed:  # FIX v5.0.0
+    if cfg.run_nikto and "nikto" not in result.phases_completed \
+            and "web" not in cfg.exclude_phases:
         console.print(Panel.fit("[phase] PHASE 8 — Nikto Web Scan [/]"))
         nk_file = run_nikto(f"https://{cfg.target}", out_folder / "nikto")
         if nk_file and nk_file.exists():
             result.nikto_findings = [l for l in nk_file.read_text().splitlines() if l.strip()]
         result.phases_completed.append("nikto")
-        save_state(result, cfg, out_folder)   # FIX v5.0.0
+        save_state(result, cfg, out_folder)
 
     # ── Phase 9: Nuclei Vulnerability Templates ───────────────────────────
-    if cfg.run_nuclei and "nuclei" not in result.phases_completed:  # FIX v5.0.0
+    if cfg.run_nuclei and "nuclei" not in result.phases_completed \
+            and "vuln" not in cfg.exclude_phases:
         console.print(Panel.fit("[phase] PHASE 9 — Nuclei Vulnerability Scan [/]"))
         nuclei_targets = [wf.url for wf in result.web_findings] or [f"https://{cfg.target}"]
         for t in nuclei_targets[:20]:
             result.nuclei_findings += run_nuclei(t, out_folder / "nuclei" / sanitize_dirname(t))
         result.phases_completed.append("nuclei")
-        save_state(result, cfg, out_folder)   # FIX v5.0.0
+        save_state(result, cfg, out_folder)
 
     # ── Phase 10: Screenshots ─────────────────────────────────────────────
-    if cfg.run_aquatone and result.subdomains and "screenshots" not in result.phases_completed:  # FIX v5.0.0
-        console.print(Panel.fit("[phase] PHASE 10 — Screenshots [/]"))
-        sub_file = out_folder / "subdomains" / "subdomains_merged.txt"
-        if sub_file.exists():
-            if not run_aquatone(sub_file, out_folder):
-                # Try gowitness as fallback
-                url_file = out_folder / "_screenshot_urls.txt"
-                url_file.write_text("\n".join(wf.url for wf in result.web_findings))
+    # BUG #3 FIX: screenshot all live web targets, not just subdomain file
+    if cfg.run_aquatone and "screenshots" not in result.phases_completed \
+            and "web" not in cfg.exclude_phases:
+        # Collect all screenshot targets: web_findings first, fallback to main domain
+        screenshot_urls = [wf.url for wf in result.web_findings]
+        if not screenshot_urls:
+            screenshot_urls = [f"https://{cfg.target}"]
+
+        if screenshot_urls:
+            console.print(Panel.fit("[phase] PHASE 10 — Screenshots [/]"))
+            url_file = out_folder / "_screenshot_urls.txt"
+            url_file.write_text("\n".join(screenshot_urls))
+
+            # Try aquatone with subdomain file if available, else gowitness
+            sub_file = out_folder / "subdomains" / "subdomains_merged.txt"
+            screenshotted = False
+            if sub_file.exists():
+                screenshotted = run_aquatone(sub_file, out_folder)
+            if not screenshotted:
                 run_gowitness(url_file, out_folder)
+
         result.phases_completed.append("screenshots")
-        save_state(result, cfg, out_folder)   # FIX v5.0.0
+        save_state(result, cfg, out_folder)
 
     # ── Phase 11: AI Analysis ─────────────────────────────────────────────
-    if cfg.run_ai_analysis and "ai_analysis" not in result.phases_completed:  # FIX v5.0.0
+    if cfg.run_ai_analysis and "ai_analysis" not in result.phases_completed:
         console.print(Panel.fit("[phase] PHASE 11 — AI Analysis [/]"))
-        if cfg.ai_provider and cfg.ai_provider != "":  # FIX v5.0.0: call real LLM
+        if cfg.ai_provider and cfg.ai_provider != "":
             analysis = run_ai_analysis(
                 result,
                 provider = cfg.ai_provider,
@@ -377,9 +403,9 @@ def orchestrate(cfg: ScanConfig,
             )
             result.ai_analysis = analysis.to_text()
         else:
-            result.ai_analysis = _generate_ai_analysis(result)  # fallback
+            result.ai_analysis = _generate_ai_analysis(result)
         result.phases_completed.append("ai_analysis")
-        save_state(result, cfg, out_folder)   # FIX v5.0.0
+        save_state(result, cfg, out_folder)
 
     # ── Phase 12: v5 Integrations ────────────────────────────────────────
 
@@ -410,10 +436,14 @@ def orchestrate(cfg: ScanConfig,
         result.phases_completed.append("ssl")
         save_state(result, cfg, out_folder)
 
-    # VirusTotal
+    # VirusTotal — BUG #2 FIX: route IP targets to vt_ip_lookup
     if cfg.run_virustotal and cfg.vt_key and "virustotal" not in result.phases_completed:
         console.print(Panel.fit("[phase] PHASE 12d — VirusTotal Reputation [/]"))
-        vt_r = vt_domain_lookup(cfg.target, cfg.vt_key)
+        try:
+            _ipaddress.ip_address(cfg.target)
+            vt_r = vt_ip_lookup(cfg.target, cfg.vt_key)
+        except ValueError:
+            vt_r = vt_domain_lookup(cfg.target, cfg.vt_key)
         if vt_r:
             result.vt_results.append(vt_r)
         result.phases_completed.append("virustotal")
@@ -433,7 +463,7 @@ def orchestrate(cfg: ScanConfig,
     if plugins:
         run_plugins(plugins, cfg.target, out_folder, result, cfg)
         result.phases_completed.append("plugins")
-        save_state(result, cfg, out_folder)   # FIX v5.0.0
+        save_state(result, cfg, out_folder)
 
     # ── Phase 14: Reports ─────────────────────────────────────────────────
     result.end_time = timestamp()
@@ -454,7 +484,6 @@ def orchestrate(cfg: ScanConfig,
         generate_markdown_report(result, md_path)
         console.print(f"[info]  MD:   {md_path}[/]")
 
-
     # ── Terminal summary ──────────────────────────────────────────────────
     if result.hosts:
         console.print(render_open_ports_table(result.hosts))
@@ -464,7 +493,7 @@ def orchestrate(cfg: ScanConfig,
     vuln_c     = sum(1 for v in result.nuclei_findings if v.severity in ("critical", "high"))
 
     console.print(Panel.fit(
-        f"[success]✔ ReconNinja v5.0.0 Complete[/]\n"
+        f"[success]✔ ReconNinja v5.2.1 Complete[/]\n"
         f"Subdomains [cyan]{len(result.subdomains)}[/]  |  "
         f"Hosts [cyan]{len(result.hosts)}[/]  |  "
         f"Open Ports [cyan]{total_open}[/]  |  "
@@ -487,7 +516,6 @@ def _generate_ai_analysis(result: ReconResult) -> str:
     """
     Rule-based AI analysis (no external API required).
     Examines findings and produces a plain-English threat summary.
-    Future: swap this for an LLM call.
     """
     lines: list[str] = ["=== ReconNinja AI Analysis ===", ""]
 
@@ -498,7 +526,6 @@ def _generate_ai_analysis(result: ReconResult) -> str:
     ]
     high_vulns = [v for v in result.nuclei_findings if v.severity in ("critical", "high")]
 
-    # Risk level
     risk = "LOW"
     if crit_ports or high_vulns:
         risk = "CRITICAL" if (len(crit_ports) > 3 or len(high_vulns) > 2) else "HIGH"
@@ -508,7 +535,6 @@ def _generate_ai_analysis(result: ReconResult) -> str:
     lines.append(f"Overall Risk Level: {risk}")
     lines.append("")
 
-    # Exposure summary
     lines.append("Attack Surface Summary:")
     lines.append(f"  • {len(result.subdomains)} subdomains discovered")
     lines.append(f"  • {total_open} open ports across {len(result.hosts)} hosts")
@@ -516,7 +542,6 @@ def _generate_ai_analysis(result: ReconResult) -> str:
     lines.append(f"  • {len(result.nuclei_findings)} vulnerability findings")
     lines.append("")
 
-    # High-risk ports
     if crit_ports:
         lines.append("High-Risk Ports (immediate attention):")
         for host, port in crit_ports[:10]:
@@ -524,7 +549,6 @@ def _generate_ai_analysis(result: ReconResult) -> str:
             lines.append(f"  ⚠ {label}:{port.port} ({port.service}) — {port.severity.upper()}")
         lines.append("")
 
-    # CVE findings
     if high_vulns:
         lines.append("Critical/High Vulnerabilities:")
         for v in high_vulns[:10]:
@@ -532,7 +556,6 @@ def _generate_ai_analysis(result: ReconResult) -> str:
             lines.append(f"  ✗ [{v.severity.upper()}] {v.title}{cve} @ {v.target}")
         lines.append("")
 
-    # Recommendations
     lines.append("Recommendations:")
     if any(p.port in {21, 23} for h in result.hosts for p in h.open_ports):
         lines.append("  • Disable plaintext protocols (FTP/Telnet) — use SFTP/SSH")

@@ -36,7 +36,7 @@ def save_state(result: ReconResult, cfg: ScanConfig, out_folder: Path) -> None:
     Called by orchestrator after every completed phase.
     """
     state = {
-        "version":    "5.0.0",
+        "version":    "5.2.1",
         "config":     cfg.to_dict(),
         "result":     _result_to_dict(result),
         "out_folder": str(out_folder),
