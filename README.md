@@ -14,7 +14,7 @@
 > ⚠ Use only against targets you own or have explicit written permission to test.
 
 📄 **Documentation available at [doc.emonpersonal.xyz](http://doc.emonpersonal.xyz/)**
-
+[![Changelog](https://img.shields.io/badge/Changelog-View-blue)](CHANGELOG.md)
 </div>
 
 ---
