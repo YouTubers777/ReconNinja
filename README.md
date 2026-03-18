@@ -45,19 +45,19 @@ cd ReconNinja && chmod +x install.sh && ./install.sh
 
 ```bash
 # Interactive mode — guided setup
-reconninja
+ReconNinja
 
 # Standard scan
-reconninja -t example.com
+ReconNinja -t example.com
 
 # Full 14-phase pipeline
-reconninja -t example.com --profile full_suite -y
+ReconNinja -t example.com --profile full_suite -y
 
 # v5: WHOIS + Wayback + SSL — no keys needed
-reconninja -t example.com --whois --wayback --ssl -y
+ReconNinja -t example.com --whois --wayback --ssl -y
 
 # v5: Full intelligence
-reconninja -t example.com --profile full_suite \
+ReconNinja -t example.com --profile full_suite \
   --whois --wayback --ssl \
   --shodan --shodan-key YOUR_KEY \
   --vt --vt-key YOUR_KEY \
@@ -112,7 +112,7 @@ Bugfix release — 15 bugs fixed across 14 files. pyflakes clean (0 warnings).
 | 1 | `--resume` now prints a clear error if the state file is missing or corrupt |
 | 2 | `output/report_html.py` footer version updated from `v3.3` → `v5.2.2` |
 | 3 | `output/report_html.py` subtitle updated from `v3.3` → `v5.2.2` |
-| 4 | Module docstring in `reconninja.py` updated from `v5.0.0` → `v5.2.2` |
+| 4 | Module docstring in `ReconNinja.py` updated from `v5.0.0` → `v5.2.2` |
 | 5 | `print_update_status` imported but never used — removed |
 | 6 | 7 dead imports removed from `orchestrator.py` |
 | 7 | `wayback.py` — `status` variable assigned from row but never read |
@@ -246,7 +246,7 @@ reports/
 
 ```bash
 # Scan crashes after Phase 8 — resume from last checkpoint
-reconninja --resume reports/example.com_20260307_120000/state.json
+ReconNinja --resume reports/example.com_20260307_120000/state.json
 ```
 
 All v5 results (WHOIS, Wayback, SSL, VT, Shodan) are preserved in `state.json` and restored on resume.
@@ -270,7 +270,7 @@ def run(target, out_folder, result, cfg):
 Only `rich` is required. All external tools are optional — ReconNinja detects what's available and falls back gracefully.
 
 ```bash
-reconninja --check-tools    # show availability
+ReconNinja --check-tools    # show availability
 ```
 
 Optional tools: `nmap`, `rustscan`, `masscan`, `amass`, `subfinder`, `httpx`, `feroxbuster`, `ffuf`, `dirsearch`, `whatweb`, `nikto`, `nuclei`, `aquatone`, `gowitness`
