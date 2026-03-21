@@ -349,6 +349,19 @@ python3 -m pytest tests/test_models.py -v
 ```
 
 ---
+---
+
+## Part of the HackerInc/ExploitCraft Ecosystem
+
+| Tool | Description |
+|------|-------------|
+| [envleaks](https://github.com/ExploitCraft/envleaks) | Codebase & git history scanner (this repo) |
+| [gitdork](https://github.com/ExploitCraft/gitdork) | Google/Shodan dork generator |
+| [wifi-passview](https://github.com/ExploitCraft/wifi-passview) | Cross-platform WiFi credential dumper |
+| **ReconNinja** | ReconNinja v6 — 21-phase recon framework |
+| [VaultHound](https://github.com/ExploitCraft/VaultHound) | Secret & credential scanner |
+
+---
 
 ## License
 
